@@ -1,0 +1,12 @@
+{
+  "name": "Controle de Finanças MPD",
+  "short_name": "Finanças MPD",
+  "description": "Controle simples de contas recorrentes.",
+  "lang": "pt-BR",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f3f5f1",
+  "theme_color": "#173f35"
+}

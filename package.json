@@ -1,0 +1,9 @@
+{
+  "name": "financas-mpd",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PWA estático para controle de contas recorrentes.",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1"
+  }
+}
