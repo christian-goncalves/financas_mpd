@@ -187,6 +187,10 @@ button {
   backdrop-filter: blur(12px);
 }
 
+.selection-bar .button {
+  width: 100%;
+}
+
 .button,
 .account-icon-action {
   min-height: 2.75rem;
