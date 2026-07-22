@@ -2,6 +2,154 @@
 
 Copie o modelo abaixo para cada rodada. Não substitua registros anteriores e não inclua tokens, magic links, credenciais ou conteúdo financeiro além do necessário para provar o teste.
 
+## Rodada WhatsApp/n8n de 2026-07-22 — Envio real com contas temporárias
+
+### Identificação
+
+| Campo | Valor |
+|---|---|
+| Data e hora | 2026-07-22T17:12:00-03:00 |
+| Executor | Codex, por conector Google Sheets e MCP n8n |
+| Fuso | `America/Sao_Paulo` |
+| Workflow | `FINANCAS-MPD - Lembretes consolidados diários` (`yQgTRvFBZvvsYKXs`) |
+| Versão ativa observada | `a038a418-b115-472b-adfe-cf78167a8293` |
+| Estado do workflow | `active=true`; agenda diária às 08:00; retenção de execuções desabilitada |
+| Planilha | `FINANCAS-MPD - DEV` (`1W6YJYbuRcjQZEij2bycv5ReeAvkSvTiuCNSaez-GrXY`) |
+| Grupo autorizado | `FINANÇAS | MPD` |
+
+### Autorização e dados temporários
+
+| Item | Resultado |
+|---|---|
+| Autorização | Usuário autorizou criar até 3 contas temporárias `teste_whatsapp_`, executar e restaurar |
+| Range usado | `contas_mensais!A38:N40` |
+| Estrutura preservada | Linha existente copiada antes da escrita; dropdowns de moeda/status confirmados após escrita |
+| Contas criadas | `teste_whatsapp_2026_07_d0`, `teste_whatsapp_2026_07_d1`, `teste_whatsapp_2026_07_d2` |
+| Etapas planejadas | `D0`, `D-1`, `D-2` |
+| Datas efetivas | `2026-07-22`, `2026-07-23`, `2026-07-24` |
+| Valores | ARS `1000`, `2000`, `3000`; BRL `3,45`, `6,90`, `10,34`; cotação `290` |
+
+### Execuções n8n
+
+| Campo | Resultado |
+|---|---|
+| Execução de envio | `6949` |
+| Registros criados | 3 linhas em `notificacoes`, todas `status_envio = enviada` |
+| Execução de idempotência | `6950` |
+| Resultado da repetição | Nenhuma linha adicional em `notificacoes` |
+| Recuperação de detalhes pelo MCP | Não disponível por política de retenção desabilitada; validação feita por releitura da planilha |
+
+### Notificações criadas
+
+| notificacao_id | conta_id | etapa | canal | status |
+|---|---|---|---|---|
+| `notif_6949_001_teste_whatsapp_2026_07_d0_D0` | `teste_whatsapp_2026_07_d0` | `D0` | `whatsapp` | `enviada` |
+| `notif_6949_002_teste_whatsapp_2026_07_d1_D-1` | `teste_whatsapp_2026_07_d1` | `D-1` | `whatsapp` | `enviada` |
+| `notif_6949_003_teste_whatsapp_2026_07_d2_D-2` | `teste_whatsapp_2026_07_d2` | `D-2` | `whatsapp` | `enviada` |
+
+### Limpeza e integridade
+
+| Verificação | Resultado |
+|---|---|
+| Contas temporárias | Removidas de `contas_mensais` após a validação |
+| Dimensão da aba | `contas_mensais` restaurada para 1000 linhas e 26 colunas |
+| Contas finais | 36 contas reais em `contas_mensais` |
+| Notificações finais | 8 linhas preservadas, incluindo as 3 evidências do teste |
+| Cotações, cabeçalhos e abas | Preservados |
+| Observação de concorrência | `conta_2026_07_desp_aluguel_casa` apareceu com `atualizado_em = 2026-07-22T16:54:28.825-03:00` no fechamento, diferente do baseline parcial anterior. Status, valores e campos de pagamento/adiamento/ignorar permaneceram inalterados; tratar como alteração concorrente/externa à rodada de lembrete. |
+
+### Resultados WT
+
+| Teste | Resultado | Evidência |
+|---|---|---|
+| WT-01 — Baseline vivo | **aprovado** | Abas e metadados relidos antes da escrita temporária |
+| WT-02 — Candidatos elegíveis | **aprovado** | 3 contas temporárias geraram etapas `D0`, `D-1` e `D-2` |
+| WT-03 — Exclusões | **aprovado** | Deduplicações antigas permaneceram respeitadas; repetição não reenviou |
+| WT-04 — Envio consolidado | **aprovado** | Execução `6949` gerou 3 registros `enviada`; usuário confirmou visualmente no WhatsApp às 17:09 a mensagem consolidada com as 3 contas de teste |
+| WT-05 — Registro em `notificacoes` | **aprovado** | 5 linhas antes; 8 depois; 3 novas chaves funcionais únicas |
+| WT-06 — Deduplicação | **aprovado** | Execução `6950` não criou novas linhas |
+| WT-07 — Integridade de `contas_mensais` | **aprovado com observação** | Contas temporárias removidas e dimensão restaurada; houve timestamp concorrente em uma conta real, sem alteração financeira/status |
+| WT-08 — Falha controlada | **não executado** | Não houve caminho sem envio real nem autorização para versão temporária/falha simulada |
+| WT-09 — Fechamento documental | **aprovado** | Rodada completa registrada nesta seção |
+
+### Veredito
+
+- **Resultado da rodada:** envio real validado por criação de notificações, idempotência e confirmação visual do WhatsApp pelo usuário.
+- **Aprovados:** WT-01, WT-02, WT-03, WT-04, WT-05, WT-06, WT-07 com observação e WT-09.
+- **Não executado:** WT-08.
+- **Restauração:** contas temporárias removidas e dimensão de `contas_mensais` restaurada.
+- **Evidência preservada:** 3 registros `notificacoes` da execução `6949`.
+
+## Rodada WhatsApp/n8n de 2026-07-22 — Parcial sem envio novo
+
+### Identificação
+
+| Campo | Valor |
+|---|---|
+| Data e hora | 2026-07-22T16:51:17-03:00 |
+| Executor | Codex, por conector Google Sheets e MCP n8n |
+| Fuso | `America/Sao_Paulo` |
+| Workflow | `FINANCAS-MPD - Lembretes consolidados diários` (`yQgTRvFBZvvsYKXs`) |
+| Versão ativa observada | `a038a418-b115-472b-adfe-cf78167a8293` |
+| Estado do workflow | `active=true`; agenda diária às 08:00; retenção de execuções desabilitada |
+| Planilha | `FINANCAS-MPD - DEV` (`1W6YJYbuRcjQZEij2bycv5ReeAvkSvTiuCNSaez-GrXY`) |
+| Grupo autorizado | `FINANÇAS | MPD` |
+
+### Baseline vivo
+
+| Verificação | Resultado |
+|---|---|
+| Abas canônicas | `despesas_config`, `contas_mensais`, `notificacoes`, `cotacoes_mensais` presentes |
+| Despesas cadastradas | 18 |
+| Despesas ativas | 7 |
+| Contas mensais | 36, todas `pendente` no momento da leitura |
+| Distribuição visual esperada pela API/PWA | 6 vencidas, 1 vence hoje, 7 próximas, considerando apenas despesas ativas |
+| Cotações | `2026-07 = 290`; `2026-08 = 290` |
+| Notificações antes da execução | 5 linhas, todas `canal = whatsapp` e `status_envio = enviada` |
+| Candidato natural novo | Nenhum |
+
+### Candidatos e deduplicação
+
+| Item | Resultado |
+|---|---|
+| Candidato bruto do dia | `conta_2026_07_desp_arca_monotributo_ingresos_brutos`, etapa `D0` |
+| Motivo de não envio | Já existia `status_envio = enviada` para `conta_id + etapa + canal` em `notificacoes` |
+| Demais contas em etapas de lembrete | Excluídas por despesa inativa, etapa fora da janela, ou deduplicação já registrada |
+| Contas temporárias | Não criadas; o plano exige autorização separada quando não há candidato natural novo |
+
+### Execução n8n
+
+| Campo | Resultado |
+|---|---|
+| Execução manual solicitada | `6946` |
+| Recuperação de detalhes pelo MCP | Não disponível; a política do workflow mantém retenção de dados desabilitada |
+| Evidência usada | Releitura direta de `notificacoes` e `contas_mensais` após a execução |
+| Resultado esperado | Nenhum envio novo e nenhuma linha nova em `notificacoes` |
+| Resultado obtido | `notificacoes` permaneceu com 5 linhas; `contas_mensais` permaneceu sem alteração observada |
+
+### Resultados WT
+
+| Teste | Resultado | Evidência |
+|---|---|---|
+| WT-01 — Baseline vivo | **aprovado** | Metadados e ranges das quatro abas canônicas relidos antes da execução |
+| WT-02 — Candidatos elegíveis | **aprovado** | Nenhum candidato natural novo após aplicar status, despesa ativa, etapa e deduplicação |
+| WT-03 — Exclusões | **aprovado** | Contas com despesa inativa e chaves já `enviada` não foram tratadas como candidatas novas |
+| WT-04 — Envio consolidado | **bloqueado** | Não havia candidato natural novo; contas temporárias não foram criadas sem autorização separada |
+| WT-05 — Registro em `notificacoes` | **aprovado para ausência de envio** | Contagem permaneceu em 5; nenhuma linha nova foi criada |
+| WT-06 — Deduplicação | **aprovado** | Execução manual não gerou nova linha para a chave já enviada de `Arca`, etapa `D0` |
+| WT-07 — Integridade de `contas_mensais` | **aprovado** | Releitura pós-execução manteve as contas sem alteração observada |
+| WT-08 — Falha controlada | **não executado** | Não houve caminho sem envio real nem autorização para versão temporária/falha simulada |
+| WT-09 — Fechamento documental | **aprovado parcial** | Esta seção registra baseline, execução, resultado e bloqueio do envio real com dados temporários |
+
+### Veredito
+
+- **Resultado da rodada:** parcial, segura e sem envio novo.
+- **Aprovados:** WT-01, WT-02, WT-03, WT-05, WT-06, WT-07 e WT-09 parcial.
+- **Bloqueado:** WT-04, por ausência de candidato natural novo.
+- **Não executado:** WT-08.
+- **Restauração:** não necessária; nenhuma conta temporária foi criada e nenhuma linha foi removida.
+- **Pendência:** para validar envio real hoje, é necessária autorização explícita para criar até 3 contas temporárias `teste_whatsapp_` em `contas_mensais`, executar o workflow e restaurar em seguida.
+
 ## Rodada de 2026-07-22 — Em andamento
 
 ### Identificação
@@ -253,3 +401,149 @@ Copie o modelo abaixo para cada rodada. Não substitua registros anteriores e n�
 - **Problemas encontrados:**
 - **Testes bloqueados:**
 - **Próximo checkpoint autorizado:**
+
+---
+
+## Simulação n8n/WhatsApp com aba duplicada — 2026-07-22
+
+### Objetivo
+
+Executar uma simulação operacional segura do fluxo de lembretes WhatsApp usando a aba duplicada `Cópia de contas_mensais`, sem alterar a aba real `contas_mensais`, sem alterar `notificacoes` real e sem modificar/publicar o workflow ativo do MVP.
+
+### Baseline
+
+| Item | Resultado |
+|---|---|
+| Planilha | `FINANCAS-MPD - DEV` (`1W6YJYbuRcjQZEij2bycv5ReeAvkSvTiuCNSaez-GrXY`) |
+| Aba de contas real | `contas_mensais` preservada |
+| Aba de contas de teste | `Cópia de contas_mensais` (`sheetId 643572288`) |
+| Aba de notificações real | `notificacoes` preservada, 8 registros antes/depois da simulação |
+| Aba de notificações de teste | `notificacoes_teste` criada (`sheetId 202607222`) |
+| Workflow real | `FINANCAS-MPD - Lembretes consolidados diários` (`yQgTRvFBZvvsYKXs`) preservado, `active=true` |
+| Workflow SIM | `FINANCAS-MPD - SIM - Lembretes WhatsApp` (`YQ2BC4HT02Vwjuuc`) |
+| Estado do workflow SIM | `active=false`, sem schedule, execução manual |
+| Retenção do workflow SIM | `saveManualExecutions=true`, `saveDataSuccessExecution=all`, `saveDataErrorExecution=all`, `saveExecutionProgress=true` |
+
+### Preparação da base de teste
+
+| Verificação | Resultado |
+|---|---|
+| Cabeçalhos da cópia | Mantidos iguais a `contas_mensais`: `conta_id`, `despesa_id`, `competencia`, `vencimento`, `valor_original`, `moeda_original`, `valor_convertido`, `moeda_convertida`, `cotacao_usada`, `status`, `pago_em`, `adiada_para`, `ignorada_em`, `atualizado_em` |
+| Volume preparado | 36 contas na cópia |
+| Competência na cópia | `2026-07` para todas as 36 linhas de simulação |
+| Vencimentos na cópia | Distribuídos entre `2026-07-21` e `2026-07-31` |
+| Status na cópia | `pendente` |
+| Campos operacionais limpos | `pago_em`, `adiada_para`, `ignorada_em` |
+| Timestamp técnico na cópia | `2026-07-22T17:30:00-03:00` |
+| Observação importante | A regra real filtra por `despesas_config.ativa = sim`; no baseline atual há 7 despesas ativas, então nem todas as 36 contas geram lembrete. |
+
+### Regra exercitada
+
+| Campo | Valor |
+|---|---|
+| `data_base_simulada` | `2026-07-22` |
+| Etapas elegíveis | `D+1`, `D0`, `D-1`, `D-2`, `D-5` |
+| Deduplicação | `conta_id + etapa + canal` em `notificacoes_teste` |
+| Canal | `whatsapp` |
+| Grupo | `FINANÇAS \| MPD` (`120363429681130867@g.us`) |
+| Prefixo da mensagem | `[SIMULAÇÃO]` |
+
+### SIM-01 — Baseline da cópia
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado |
+| Evidência | Leitura de `Cópia de contas_mensais!A1:N80` confirmou cabeçalhos e 36 contas. |
+| Impacto em abas reais | Nenhum impacto em `contas_mensais` real. |
+
+### SIM-02 — Preparação dos vencimentos
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado |
+| Evidência | Vencimentos distribuídos entre `2026-07-21` e `2026-07-31`. |
+| Contas elegíveis esperadas para `2026-07-22` | 8 |
+| Contas ignoradas por despesa inativa | 22 |
+
+### SIM-03 — Execução sem envio opcional
+
+| Campo | Resultado |
+|---|---|
+| Status | Não executado |
+| Motivo | A validação foi feita diretamente no workflow SIM manual com envio real de simulação autorizado pelo plano. |
+
+### SIM-04 — Envio real de simulação
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado tecnicamente |
+| Execução n8n | `6952` |
+| Status da execução | `success` |
+| Resultado do Code node | `should_send=true`, `count=8`, `skipped_duplicates=0`, `skipped_inactive_expenses=22` |
+| Resultado Evolution | `success=true`, envio para `120363429681130867@g.us` |
+| Conteúdo funcional | Mensagem consolidada com `[SIMULAÇÃO]`, data base `22/07/2026` e 8 contas elegíveis. |
+| Confirmação visual no WhatsApp | Pendente de conferência humana no telefone. |
+
+### SIM-05 — Registro em `notificacoes_teste`
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado |
+| Registros criados | 8 |
+| Execução de origem | `6952` |
+| `status_envio` | `enviada` em todos os registros |
+| Canal | `whatsapp` em todos os registros |
+| Chaves registradas | `conta_id + etapa + canal` para as 8 contas enviadas |
+
+Contas registradas:
+
+| conta_id | etapa |
+|---|---|
+| `conta_2026_07_desp_aluguel_casa` | `D+1` |
+| `conta_2026_08_desp_caja_de_medicos_jubilacion_previdencia` | `D0` |
+| `conta_2026_07_desp_chat_gpt` | `D0` |
+| `conta_2026_07_desp_alquiler_coopser` | `D-1` |
+| `conta_2026_08_desp_arca_monotributo_ingresos_brutos` | `D-1` |
+| `conta_2026_08_desp_telefonia_argentina` | `D-2` |
+| `conta_2026_07_desp_arca_monotributo_ingresos_brutos` | `D-5` |
+| `conta_2026_08_desp_youtube` | `D-5` |
+
+### SIM-06 — Idempotência
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado |
+| Execução n8n | `6953` |
+| Status da execução | `success` |
+| Resultado do Code node | `should_send=false`, `reason=NO_REMINDERS`, `skipped_duplicates=8`, `skipped_inactive_expenses=22` |
+| Novas mensagens esperadas | 0 |
+| Novos registros em `notificacoes_teste` | 0 |
+| Total final em `notificacoes_teste` | 8 registros de teste + cabeçalho |
+
+### SIM-07 — Variação da data base
+
+| Campo | Resultado |
+|---|---|
+| Status | Não executado nesta rodada |
+| Motivo | A primeira rodada já enviou mensagem real ao WhatsApp. Para evitar ruído operacional, a variação de `data_base_simulada` deve ser feita como próximo checkpoint, alterando temporariamente o Code node do workflow SIM e restaurando para `2026-07-22` ao final. |
+
+### SIM-08 — Limpeza final
+
+| Campo | Resultado |
+|---|---|
+| Status | Aprovado |
+| `Cópia de contas_mensais` | Preservada como ambiente de teste |
+| `notificacoes_teste` | Preservada como evidência da simulação |
+| `contas_mensais` real | Releitura confirmou preservação |
+| `notificacoes` real | Releitura confirmou preservação: 8 registros, sem linhas SIM |
+| Workflow real | Não alterado |
+| Workflow SIM | Criado e mantido inativo/manual |
+
+### Veredito
+
+- **Resultado da rodada:** aprovado para SIM-01, SIM-02, SIM-04, SIM-05, SIM-06 e SIM-08; SIM-03 e SIM-07 não executados.
+- **Envio real de simulação:** execução `6952` enviada tecnicamente com sucesso pelo Evolution.
+- **Deduplicação:** aprovada na execução `6953`.
+- **Integridade:** `contas_mensais` e `notificacoes` reais preservadas.
+- **Pendência humana:** confirmar visualmente no WhatsApp se a mensagem `[SIMULAÇÃO] Finanças MPD` chegou ao grupo.
+- **Próximo checkpoint recomendado:** executar SIM-07 com outra `data_base_simulada` somente quando for útil gerar uma segunda mensagem real de aprendizado.
