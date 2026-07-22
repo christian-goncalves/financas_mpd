@@ -1,17 +1,20 @@
 // Configuração
-const APP_MODE = "demo"; // "demo" ou "api"
+const APP_MODE = "api"; // "demo" ou "api"
+const PUBLIC_MVP_MODE = true;
 
-const APP_CONFIG = {
-  API_BASE_URL: "",
-  AUTH_TOKEN: ""
-};
+const APP_CONFIG = Object.freeze({
+  API_BASE_URL: "https://n8n.autamacao.shop/api",
+  get AUTH_TOKEN() {
+    return window.FINANCAS_AUTH_SESSION?.getToken() || "";
+  }
+});
 
 const ERROR_MESSAGES = Object.freeze({
   list: "Não foi possível carregar as contas.",
   pay: "Não foi possível marcar as contas como pagas.",
-  postpone: "Não foi possível adiar a conta.",
-  ignore: "Não foi possível ignorar a conta."
+  postpone: "Não foi possível adiar a conta."
 });
+const FEEDBACK_DURATION_MS = 3000;
 
 // Elementos e estado da aplicação
 const accountsListElement = document.querySelector("#accounts-list");
@@ -41,6 +44,8 @@ const visualGroupMap = Object.freeze({
 const today = startOfDay(new Date());
 const selectedAccountIds = new Set();
 let accounts = [];
+let feedbackTimeoutId = null;
+let isPaymentInProgress = false;
 
 // Dados fictícios
 const demoAccounts = [
@@ -103,10 +108,17 @@ class AppDataError extends Error {
 }
 
 function assertApiConfiguration() {
-  if (!APP_CONFIG.API_BASE_URL.trim() || !APP_CONFIG.AUTH_TOKEN.trim()) {
+  if (!APP_CONFIG.API_BASE_URL.trim()) {
     throw new AppDataError(
       "A integração com o n8n ainda não está configurada.",
       "API_NOT_CONFIGURED"
+    );
+  }
+
+  if (!PUBLIC_MVP_MODE && !APP_CONFIG.AUTH_TOKEN.trim()) {
+    throw new AppDataError(
+      "Abra o aplicativo pelo link de acesso.",
+      "AUTH_REQUIRED"
     );
   }
 }
@@ -119,9 +131,12 @@ async function apiRequest(path, { method = "GET", body } = {}) {
   assertApiConfiguration();
 
   const headers = {
-    Accept: "application/json",
-    Authorization: `Bearer ${APP_CONFIG.AUTH_TOKEN}`
+    Accept: "application/json"
   };
+
+  if (!PUBLIC_MVP_MODE) {
+    headers.Authorization = `Bearer ${APP_CONFIG.AUTH_TOKEN}`;
+  }
 
   if (body) {
     headers["Content-Type"] = "application/json";
@@ -134,7 +149,10 @@ async function apiRequest(path, { method = "GET", body } = {}) {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
-      cache: "no-store"
+      cache: "no-store",
+      credentials: "omit",
+      redirect: "error",
+      referrerPolicy: "no-referrer"
     });
   } catch {
     throw new AppDataError("Não foi possível alcançar o serviço de integração.", "NETWORK_ERROR");
@@ -217,24 +235,6 @@ async function postponeAccount(accountId, newDate) {
   return account;
 }
 
-async function ignoreAccount(accountId) {
-  if (APP_MODE === "api") {
-    await apiRequest("/accounts/ignore", {
-      method: "POST",
-      body: { conta_id: accountId }
-    });
-  }
-
-  const account = accounts.find((item) => item.id === accountId);
-
-  if (!account) {
-    throw new AppDataError("Conta não encontrada.", "ACCOUNT_NOT_FOUND");
-  }
-
-  accounts = accounts.filter((item) => item.id !== accountId);
-  return account;
-}
-
 // Formatação e renderização da interface
 function getAccountGroup(account) {
   if (account.visualGroup) {
@@ -277,51 +277,56 @@ function formatBrl(value) {
   }).format(value);
 }
 
+function escapeHtml(value) {
+  return String(value).replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "'": "&#39;",
+    '"': "&quot;"
+  })[character]);
+}
+
 function renderAccountCard(account, group) {
   const isSelected = selectedAccountIds.has(account.id);
   const isAutomatic = account.paymentType === "automatic";
   const paymentLabel = isAutomatic ? "Débito aut." : "Manual";
   const selectedClass = isSelected ? " account-card--selected" : "";
+  const safeAccountId = escapeHtml(account.id);
+  const safeAccountName = escapeHtml(account.name);
+  const safeCategory = escapeHtml(account.category);
+  const safePaymentLabel = escapeHtml(paymentLabel);
 
   return `
-    <article class="account-card account-card--${group.id}${selectedClass}" data-account-id="${account.id}">
+    <article class="account-card account-card--${group.id}${selectedClass}" data-account-id="${safeAccountId}">
       <div class="account-card__header">
         <div class="account-card__title-row">
-          <h3 class="account-card__name">${account.name}</h3>
+          <h3 class="account-card__name">${safeAccountName}</h3>
           <div class="account-card__controls">
             <label class="account-select-control">
               <input
                 class="account-select"
                 type="checkbox"
                 data-action="select"
-                aria-label="Selecionar ${account.name}"
+                aria-label="Selecionar ${safeAccountName}"
                 ${isSelected ? "checked" : ""}
               >
             </label>
             <button
-              class="account-icon-action"
+              class="account-icon-action account-icon-action--postpone"
               type="button"
               data-action="postpone"
-              aria-label="Adiar ${account.name}"
+              aria-label="Adiar ${safeAccountName}"
               title="Adiar"
             >
               <i class="fa-solid fa-clock" aria-hidden="true"></i>
             </button>
-            <button
-              class="account-icon-action account-icon-action--ignore"
-              type="button"
-              data-action="ignore"
-              aria-label="Ignorar ${account.name}"
-              title="Ignorar"
-            >
-              <i class="fa-solid fa-eye-slash" aria-hidden="true"></i>
-            </button>
           </div>
         </div>
         <p class="account-card__meta">
-          <span>${account.category}</span>
+          <span>${safeCategory}</span>
           <span aria-hidden="true">·</span>
-          <strong>${paymentLabel}</strong>
+          <strong>${safePaymentLabel}</strong>
         </p>
       </div>
 
@@ -391,8 +396,17 @@ function updateSummary() {
 
 function updateSelectionActions() {
   const hasSelection = selectedAccountIds.size > 0;
-  markPaidButton.disabled = !hasSelection;
+  markPaidButton.disabled = !hasSelection || isPaymentInProgress;
+  markPaidButton.textContent = isPaymentInProgress ? "Marcando..." : "Marcar como pagas";
+  markPaidButton.setAttribute("aria-busy", String(isPaymentInProgress));
   cancelSelectionButton.hidden = !hasSelection;
+  cancelSelectionButton.disabled = isPaymentInProgress;
+
+  accountsListElement
+    .querySelectorAll(".account-select, .account-icon-action")
+    .forEach((control) => {
+      control.disabled = isPaymentInProgress;
+    });
 }
 
 function renderAccounts() {
@@ -404,15 +418,46 @@ function renderAccounts() {
 }
 
 function showFeedback(message) {
+  if (feedbackTimeoutId) {
+    window.clearTimeout(feedbackTimeoutId);
+    feedbackTimeoutId = null;
+  }
+
   feedbackElement.textContent = message;
+
+  if (!message) {
+    return;
+  }
+
+  feedbackTimeoutId = window.setTimeout(() => {
+    if (feedbackElement.textContent === message) {
+      feedbackElement.textContent = "";
+    }
+
+    feedbackTimeoutId = null;
+  }, FEEDBACK_DURATION_MS);
 }
 
 function showOperationError(operation, error) {
+  if (error?.code === "AUTH_REQUIRED") {
+    const message = window.FINANCAS_AUTH_SESSION?.status === "invalid"
+      ? "O link de acesso é inválido. Solicite um novo link."
+      : "Abra o aplicativo pelo link de acesso.";
+    showFeedback(message);
+    return;
+  }
+
   const configurationHint = error?.code === "API_NOT_CONFIGURED"
     ? " A integração com o n8n ainda não está configurada."
     : " Tente novamente.";
 
   showFeedback(`${ERROR_MESSAGES[operation]}${configurationHint}`);
+}
+
+function showAuthSessionFeedback() {
+  if (window.FINANCAS_AUTH_SESSION?.status === "invalid") {
+    showFeedback("O link de acesso é inválido. Solicite um novo link.");
+  }
 }
 
 // Ações do usuário
@@ -434,9 +479,12 @@ function clearSelection() {
 async function handleMarkSelectedAsPaid() {
   const accountIds = [...selectedAccountIds];
 
-  if (accountIds.length === 0) {
+  if (accountIds.length === 0 || isPaymentInProgress) {
     return;
   }
+
+  isPaymentInProgress = true;
+  updateSelectionActions();
 
   try {
     await payAccounts(accountIds);
@@ -448,6 +496,9 @@ async function handleMarkSelectedAsPaid() {
     );
   } catch (error) {
     showOperationError("pay", error);
+  } finally {
+    isPaymentInProgress = false;
+    updateSelectionActions();
   }
 }
 
@@ -461,18 +512,6 @@ async function handlePostponeAccount(accountId) {
     showFeedback(`${account.name} foi adiada por 7 dias.${localChangeLabel}`);
   } catch (error) {
     showOperationError("postpone", error);
-  }
-}
-
-async function handleIgnoreAccount(accountId) {
-  try {
-    const account = await ignoreAccount(accountId);
-    selectedAccountIds.delete(accountId);
-    renderAccounts();
-    const contextLabel = APP_MODE === "demo" ? " nesta demonstração" : "";
-    showFeedback(`${account.name} foi ignorada${contextLabel}.`);
-  } catch (error) {
-    showOperationError("ignore", error);
   }
 }
 
@@ -501,9 +540,6 @@ accountsListElement.addEventListener("click", (event) => {
     void handlePostponeAccount(accountId);
   }
 
-  if (actionButton.dataset.action === "ignore") {
-    void handleIgnoreAccount(accountId);
-  }
 });
 
 markPaidButton.addEventListener("click", () => {
@@ -543,6 +579,7 @@ async function initializeApp() {
   try {
     accounts = await fetchAccounts();
     renderAccounts();
+    showAuthSessionFeedback();
   } catch (error) {
     accounts = [];
     renderAccounts();

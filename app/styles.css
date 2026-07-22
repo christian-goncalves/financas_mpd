@@ -266,7 +266,7 @@ button {
 }
 
 .account-card__title-row {
-  padding-right: 6.75rem;
+  padding-right: 4.5rem;
   align-items: flex-start;
   gap: 0.35rem;
 }
@@ -334,16 +334,19 @@ button {
   font-size: 0.78rem;
 }
 
-.account-icon-action:hover,
-.account-icon-action:active {
-  color: var(--primary);
-  background: #edf2ef;
+.account-icon-action--postpone {
+  color: var(--warning);
 }
 
-.account-icon-action--ignore:hover,
-.account-icon-action--ignore:active {
-  color: #775a4f;
-  background: #f4efec;
+.account-icon-action--postpone:hover,
+.account-icon-action--postpone:active {
+  color: var(--warning-text);
+  background: var(--warning-soft);
+}
+
+.account-icon-action:disabled {
+  opacity: 0.55;
+  cursor: wait;
 }
 
 .account-card__details {

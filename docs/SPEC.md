@@ -46,11 +46,11 @@ Remove todas as seleções sem alterar dados.
 
 ### Adiar
 
-Na Fase 2, simula localmente uma nova data de lembrete/vencimento operacional.
+Na Fase 2, esta ação foi simulada localmente. No modo vigente `api`, ela persiste `status = adiada`, `adiada_para` e `atualizado_em` em `contas_mensais` após confirmação de sucesso do endpoint.
 
 ### Ignorar
 
-Na Fase 2, remove localmente a conta da lista daquela competência.
+Na Fase 2, esta ação removeu a conta apenas do estado local. No modo vigente `api`, ela persiste `status = ignorada`, `ignorada_em` e `atualizado_em` em `contas_mensais` após confirmação de sucesso do endpoint.
 
 ## Regras
 
@@ -58,4 +58,17 @@ Na Fase 2, remove localmente a conta da lista daquela competência.
 - Conta ignorada não recebe novos lembretes naquela competência.
 - Conta adiada volta a aparecer na nova data.
 - Conta automática aparece identificada como “Débito aut.” na linha de categoria e tipo, sem badge interno.
-- As alterações simuladas da Fase 2 não persistem após recarregar a página.
+- No modo `demo`, as alterações são locais e desaparecem após recarregar. No modo vigente `api`, pagar, adiar e ignorar persistem na planilha e devem continuar refletidos após recarregar a página.
+
+## Recebimento do acesso
+
+- Durante a validação do MVP, o PWA abre diretamente em qualquer dispositivo, sem token ou magic link.
+- O bootstrap de token permanece no projeto, mas não bloqueia a interface nem participa das requisições no modo público.
+- Após a validação, o mecanismo de acesso será refatorado antes de qualquer uso que exija privacidade.
+
+## Integração do frontend
+
+- O modo vigente é `api` e usa a base pública `https://n8n.autamacao.shop/api`.
+- No modo público temporário, o frontend não envia o header `Authorization`.
+- As respostas não são armazenadas em cache e as requisições não enviam cookies ou `Referer`.
+- Campos textuais da conta são tratados como texto, nunca como HTML executável.

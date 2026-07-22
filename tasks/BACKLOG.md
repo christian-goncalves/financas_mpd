@@ -1,8 +1,8 @@
-# Backlog
+# Backlog Pós-MVP
 
-Não há funcionalidades adicionais priorizadas além do MVP.
+Este arquivo contém somente funcionalidades fora ou posteriores ao MVP. Pendências necessárias para concluir as Fases 3, 4 e 5 pertencem exclusivamente a [MVP.md](MVP.md).
 
-Os itens abaixo constavam como fora do escopo inicial e permanecem registrados sem compromisso de implementação:
+Itens sem compromisso de implementação no MVP:
 
 - Login completo.
 - Banco relacional.
@@ -10,4 +10,4 @@ Os itens abaixo constavam como fora do escopo inicial e permanecem registrados s
 - Controle financeiro avançado.
 - Integração bancária.
 
-Qualquer entrada futura neste backlog deve ser avaliada sem alterar automaticamente o escopo do MVP.
+Novos itens devem ser avaliados antes de entrar neste backlog e não alteram automaticamente o escopo ou a ordem do MVP.

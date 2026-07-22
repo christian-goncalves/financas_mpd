@@ -2,7 +2,9 @@
 
 ## Status
 
-Documento de desenho da Fase 3A. Nenhum endpoint descrito aqui está implementado.
+Documento de desenho da Fase 3A. O contrato permanece como referência para a implementação.
+
+Os quatro endpoints foram conectados ao Google Sheets, publicados e validados pelo PWA de produção. O proxy expõe os caminhos públicos contratuais em `/api/*`, mantém `/webhook/api/*` como implementação interna e restringe CORS à origem `https://financas-mpd.vercel.app`. Desde 2026-07-22, a validação do MVP opera temporariamente sem autenticação; o desenho de Bearer token abaixo fica preservado para futura reativação.
 
 Este contrato define a interface pública entre o PWA Finanças MPD e endpoints controlados pelo n8n. O PWA não acessa Google Sheets nem Evolution API diretamente.
 
@@ -18,15 +20,23 @@ Este contrato define a interface pública entre o PWA Finanças MPD e endpoints 
 
 ## Base URL e versão
 
-Base URL sugerida:
+Base URL pública vigente:
 
 ```text
-https://<host-publico-controlado>/api
+https://n8n.autamacao.shop/api
 ```
 
 Os caminhos deste documento formam a versão inicial do contrato. Se houver mudança incompatível depois da implementação, deve ser criado um novo prefixo versionado, por exemplo `/api/v2`.
 
 ## Autenticação e segurança
+
+### Exceção pública temporária
+
+Durante a validação do MVP, o header `Authorization` é opcional e não é verificado. Os endpoints continuam restritos à origem do PWA por CORS, mas requisições fora de navegador ainda podem alcançar as rotas públicas. Portanto, a URL não deve ser tratada como controle de acesso.
+
+Para evidências da Fase 5, cada execução deve registrar explicitamente `modo_acesso = publico_temporario`. Todas as ocorrências posteriores neste documento que chamam `Authorization` de obrigatório descrevem o contrato preservado para a futura reativação, não o requisito operacional vigente.
+
+O desenho abaixo permanece como referência para a refatoração posterior.
 
 ### Recomendação para o token
 
@@ -45,6 +55,10 @@ O token de acesso:
 - deve poder ser revogado ou substituído;
 - deve ser removido da URL visível após a leitura do magic link;
 - nunca deve ser devolvido nas respostas ou gravado em logs de aplicação.
+
+O PWA consome `?token=...` antes de carregar os demais assets, remove o parâmetro com `history.replaceState` e mantém o valor somente em `sessionStorage`. Links malformados são descartados e removem qualquer token anterior da mesma sessão. O modo `api` lê esse valor em tempo de execução e nunca inclui um token nos assets estáticos.
+
+O formato, a fonte segura e os procedimentos de rotação e revogação estão definidos em [ACCESS_TOKEN.md](ACCESS_TOKEN.md). O valor nunca é registrado na documentação.
 
 ### Controles mínimos no n8n
 
@@ -283,6 +297,8 @@ Receber uma seleção de contas e alterar o status de todas para `paga`.
 }
 ```
 
+`updated_count` representa somente as linhas cujo estado foi efetivamente alterado nesta requisição. Se todos os IDs já estiverem pagos, a resposta continua sendo `200`, preserva os timestamps existentes e retorna `updated_count: 0`.
+
 ### Response de erro
 
 ```json
@@ -308,10 +324,12 @@ Receber uma seleção de contas e alterar o status de todas para `paga`.
 - Exigir array não vazio de strings não vazias.
 - Remover ou rejeitar IDs duplicados antes da alteração.
 - Confirmar que todas as contas existem e pertencem ao escopo do token.
-- Aceitar somente contas `pendente` ou `adiada` para uma nova alteração.
-- Executar a seleção de forma atômica: se um item for inválido, não alterar os demais.
+- Aceitar contas `pendente` ou `adiada` para uma nova alteração.
+- Aceitar contas já `paga` como repetição idempotente, sem regravar `pago_em` ou `atualizado_em`.
+- Rejeitar `ignorada`, `cancelada` ou qualquer outro estado incompatível com `409 INVALID_STATE`.
+- Validar todo o conjunto antes de escrever e executar as alterações elegíveis em uma única operação batch; se um item for inválido, não alterar os demais.
 - Registrar `pago_em` e `atualizado_em` no lado controlado pelo n8n.
-- Repetir a mesma ação sobre contas já pagas não deve gerar registros duplicados.
+- Calcular `updated_count` somente com as linhas efetivamente alteradas.
 
 ### Campos obrigatórios
 
@@ -387,8 +405,9 @@ Adiar uma conta para uma nova data operacional.
 - Exigir `adiada_para` como data válida `YYYY-MM-DD` e não anterior à data de processamento.
 - Confirmar que a conta existe e pertence ao escopo do token.
 - Permitir adiamento somente para status `pendente` ou `adiada`.
+- Se já estiver `adiada` para a mesma data, retornar `200` sem regravar `atualizado_em`.
+- Se estiver `paga`, `ignorada`, `cancelada` ou em outro estado incompatível, retornar `409 INVALID_STATE` sem alteração.
 - Registrar `adiada_para` e `atualizado_em` no lado controlado pelo n8n.
-- Repetir a mesma data de adiamento deve ser idempotente.
 
 ### Campos obrigatórios
 
@@ -459,8 +478,9 @@ Não é necessário enviar `competencia`: o `conta_id` identifica a ocorrência 
 - Exigir `conta_id` como string não vazia.
 - Confirmar que a conta existe e pertence ao escopo do token.
 - Permitir a alteração somente para status `pendente` ou `adiada`.
+- Se já estiver `ignorada`, retornar `200` sem regravar `ignorada_em` ou `atualizado_em`.
+- Se estiver `paga`, `cancelada` ou em outro estado incompatível, retornar `409 INVALID_STATE` sem alteração.
 - Registrar `ignorada_em` e `atualizado_em` no lado controlado pelo n8n.
-- Repetir a ação para uma conta já ignorada deve ser idempotente.
 
 ### Campos obrigatórios
 
@@ -484,14 +504,6 @@ Não é necessário enviar `competencia`: o `conta_id` identifica a ocorrência 
 - Em erro, preservar o estado anterior e apresentar mensagem simples ao usuário.
 - Não enviar objetos completos de conta nos endpoints de alteração; enviar apenas os campos definidos em cada contrato.
 
-## Pendências antes da Fase 3B
+## Dependências operacionais
 
-- Definir e provisionar o token de acesso do PWA.
-- Definir a URL pública final dos endpoints e a origem final da Vercel para CORS.
-- Confirmar o fuso horário usado para calcular `grupo_visual` e timestamps.
-- Definir se a cotação ARS/BRL será manual no MVP e em que momento será atualizada.
-- Definir como despesas originalmente em BRL serão normalizadas, pois o modelo aceita `moeda_original: BRL`, mas o baseline atual exige ARS como valor principal.
-- Confirmar a política para requisições repetidas e o comportamento idempotente no n8n.
-- Confirmar se a atualização múltipla de pagamento será atômica na implementação sobre Google Sheets.
-
-Essas pendências não autorizam o início da integração; devem ser resolvidas ou explicitamente aceitas antes da Fase 3B.
+As decisões ainda necessárias para implementar ou publicar este contrato são mantidas exclusivamente em [QUESTIONS.md](QUESTIONS.md). A ordem executável está em [MVP.md](../tasks/MVP.md).

@@ -1,7 +1,8 @@
-const CACHE_NAME = "contas-mpd-shell-v10";
+const CACHE_NAME = "contas-mpd-shell-v15";
 const APP_SHELL = [
   "./",
   "./index.html",
+  "./auth-session.js",
   "./styles.css",
   "./app.js",
   "./manifest.json",

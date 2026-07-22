@@ -1,16 +1,18 @@
 # Prompt de Revisão
 
-Revise a fase implementada do projeto Controle de Finanças MPD contra os documentos canônicos do repositório.
+Revise a tarefa executada contra `tasks/MVP.md` e os documentos canônicos relacionados.
 
 Verifique:
 
-- aderência ao PRD, à especificação e às decisões registradas;
-- conclusão apenas dos itens da fase solicitada em `tasks/MVP.md`;
-- uso de HTML, CSS e JavaScript puro, sem framework;
-- simplicidade da solução e ausência de complexidade desnecessária;
-- experiência mobile-first adequada ao iPhone;
+- se a tarefa estava autorizada e era a próxima na sequência;
+- aderência ao PRD, especificação, decisões, contrato e modelo de dados;
+- cumprimento dos critérios de aceite da tarefa;
+- evidências de implementação e teste antes de marcar `[x]`;
+- distinção entre mock, persistência, publicação e produção;
+- ausência de avanço para tarefas posteriores;
+- preservação de tokens, credenciais e dados financeiros;
 - ausência de funcionalidades fora do escopo;
-- ausência de integração antecipada com n8n ou Evolution API;
-- funcionamento dos comportamentos implementados.
+- ausência de integração com Evolution API antes da Fase 4;
+- manutenção de HTML, CSS e JavaScript puro no frontend.
 
-Apresente primeiro problemas concretos, indicando arquivo e impacto. Depois, informe testes realizados, dúvidas restantes e um veredito objetivo sobre a conclusão da fase.
+Apresente primeiro problemas concretos, com arquivo, workflow ou evidência e impacto. Depois informe testes revisados, pendências e um veredito: `pode marcar como concluída` ou `não pode marcar como concluída`.
