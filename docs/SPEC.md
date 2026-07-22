@@ -21,12 +21,13 @@ Cada conta deve exibir:
 ## Baseline Visual da Fase 2
 
 - O cabeçalho exibe somente “Finanças MPD”.
-- O resumo superior contém apenas Vencidas, Vencem hoje e Próximas.
+- O resumo superior contém Vencidas, Vencem hoje e Próximas.
+- Abaixo do resumo há filtros locais para Todas, Vencidas, Hoje e Próximas.
 - Cada seção usa um badge único com nome e quantidade.
 - Os cards são compactos e adequados à largura de celular.
 - O título ocupa a primeira linha; categoria e tipo de pagamento aparecem juntos logo abaixo.
-- Checkbox, Adiar e Ignorar ficam no canto superior direito do card.
-- Adiar e Ignorar são representados por ícones locais, com rótulos acessíveis.
+- Checkbox e Adiar ficam no canto superior direito do card.
+- Adiar é representado por ícone local, com rótulo acessível.
 - Data, ARS e BRL ocupam a faixa inferior do card.
 - Não há badges internos de status nem textos auxiliares repetitivos.
 
@@ -48,9 +49,15 @@ Remove todas as seleções sem alterar dados.
 
 Na Fase 2, esta ação foi simulada localmente. No modo vigente `api`, ela persiste `status = adiada`, `adiada_para` e `atualizado_em` em `contas_mensais` após confirmação de sucesso do endpoint.
 
+O PWA calcula o adiamento como uma soneca operacional: quando o vencimento original está a mais de dois dias, envia `adiada_para = vencimento - 2 dias`. Quando a conta já venceu, vence hoje, vence amanhã ou vence em até dois dias, usa o fallback `adiada_para = hoje + 7 dias`. O vencimento original não é alterado.
+
 ### Ignorar
 
-Na Fase 2, esta ação removeu a conta apenas do estado local. No modo vigente `api`, ela persiste `status = ignorada`, `ignorada_em` e `atualizado_em` em `contas_mensais` após confirmação de sucesso do endpoint.
+Na Fase 2, esta ação removeu a conta apenas do estado local. No modo vigente `api`, a rota de backend pode persistir `status = ignorada`, `ignorada_em` e `atualizado_em` em `contas_mensais`, mas o botão de ignorar não está exposto no frontend durante a validação atual.
+
+### Filtrar lista
+
+Os filtros Todas, Vencidas, Hoje e Próximas alteram somente a renderização local. Eles não chamam a API, não alteram a planilha e não mudam os contadores do resumo superior. Ao trocar de filtro, a seleção atual é limpa para evitar pagamento de contas ocultas.
 
 ## Regras
 

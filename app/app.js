@@ -22,6 +22,7 @@ const markPaidButton = document.querySelector("#mark-paid-button");
 const cancelSelectionButton = document.querySelector("#cancel-selection-button");
 const feedbackElement = document.querySelector("#feedback");
 const statusElement = document.querySelector("#app-status");
+const filterControlsElement = document.querySelector(".filter-bar");
 
 const summaryElements = {
   overdue: document.querySelector("#summary-overdue"),
@@ -35,6 +36,13 @@ const groupDefinitions = [
   { id: "upcoming", title: "Próximas" }
 ];
 
+const filterDefinitions = [
+  { id: "all", groupId: null },
+  { id: "overdue", groupId: "overdue" },
+  { id: "today", groupId: "today" },
+  { id: "upcoming", groupId: "upcoming" }
+];
+
 const visualGroupMap = Object.freeze({
   vencida: "overdue",
   hoje: "today",
@@ -44,6 +52,7 @@ const visualGroupMap = Object.freeze({
 const today = startOfDay(new Date());
 const selectedAccountIds = new Set();
 let accounts = [];
+let activeFilter = "all";
 let feedbackTimeoutId = null;
 let isPaymentInProgress = false;
 
@@ -83,6 +92,7 @@ function createDemoAccount(id, name, category, paymentType, dueOffset, arsValue,
     name,
     category,
     paymentType,
+    originalDueDate: addDays(today, dueOffset),
     dueDate: addDays(today, dueOffset),
     arsValue,
     brlValue,
@@ -94,6 +104,7 @@ function createDemoAccount(id, name, category, paymentType, dueOffset, arsValue,
 function cloneDemoAccounts() {
   return demoAccounts.map((account) => ({
     ...account,
+    originalDueDate: new Date(account.originalDueDate),
     dueDate: new Date(account.dueDate)
   }));
 }
@@ -178,12 +189,14 @@ async function apiRequest(path, { method = "GET", body } = {}) {
 
 function mapApiAccount(account) {
   const effectiveDate = account.adiada_para || account.vencimento;
+  const originalDueDate = account.vencimento || effectiveDate;
 
   return {
     id: account.conta_id,
     name: account.nome,
     category: account.categoria === "profissional" ? "Profissional" : "Pessoal",
     paymentType: account.tipo_pagamento === "debito_automatico" ? "automatic" : "manual",
+    originalDueDate: parseApiDate(originalDueDate),
     dueDate: parseApiDate(effectiveDate),
     arsValue: account.valor_original,
     brlValue: account.valor_convertido,
@@ -287,6 +300,10 @@ function escapeHtml(value) {
   })[character]);
 }
 
+function getActiveFilterGroup() {
+  return filterDefinitions.find((filter) => filter.id === activeFilter)?.groupId || null;
+}
+
 function renderAccountCard(account, group) {
   const isSelected = selectedAccountIds.has(account.id);
   const isAutomatic = account.paymentType === "automatic";
@@ -345,6 +362,12 @@ function renderAccountCard(account, group) {
 }
 
 function renderGroup(group) {
+  const filterGroup = getActiveFilterGroup();
+
+  if (filterGroup && filterGroup !== group.id) {
+    return "";
+  }
+
   const groupAccounts = accounts.filter((account) => getAccountGroup(account) === group.id);
 
   if (groupAccounts.length === 0) {
@@ -367,9 +390,14 @@ function renderGroup(group) {
 }
 
 function renderEmptyState() {
-  const description = APP_MODE === "demo"
-    ? "As alterações são apenas locais e serão desfeitas ao recarregar."
-    : "Não há contas pendentes para exibir.";
+  const hasFilter = activeFilter !== "all";
+  const description = hasFilter
+    ? "Nenhuma conta neste filtro."
+    : (
+      APP_MODE === "demo"
+        ? "As alterações são apenas locais e serão desfeitas ao recarregar."
+        : "Não há contas pendentes para exibir."
+    );
 
   return `
     <div class="empty-state">
@@ -394,6 +422,14 @@ function updateSummary() {
   summaryElements.upcoming.textContent = totals.upcoming;
 }
 
+function updateFilterControls() {
+  filterControlsElement?.querySelectorAll("[data-filter]").forEach((control) => {
+    const isActive = control.dataset.filter === activeFilter;
+    control.classList.toggle("filter-chip--active", isActive);
+    control.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function updateSelectionActions() {
   const hasSelection = selectedAccountIds.size > 0;
   markPaidButton.disabled = !hasSelection || isPaymentInProgress;
@@ -414,6 +450,7 @@ function renderAccounts() {
   accountsListElement.innerHTML = groupsMarkup || renderEmptyState();
   accountsListElement.setAttribute("aria-busy", "false");
   updateSummary();
+  updateFilterControls();
   updateSelectionActions();
 }
 
@@ -476,6 +513,33 @@ function clearSelection() {
   renderAccounts();
 }
 
+function updateActiveFilter(filterId) {
+  if (!filterDefinitions.some((filter) => filter.id === filterId) || filterId === activeFilter) {
+    return;
+  }
+
+  activeFilter = filterId;
+  selectedAccountIds.clear();
+  renderAccounts();
+}
+
+function calculatePostponeDate(account) {
+  const originalDueDate = startOfDay(account.originalDueDate || account.dueDate);
+  const reminderDate = addDays(originalDueDate, -2);
+
+  if (reminderDate > today) {
+    return {
+      date: reminderDate,
+      usesFallback: false
+    };
+  }
+
+  return {
+    date: addDays(today, 7),
+    usesFallback: true
+  };
+}
+
 async function handleMarkSelectedAsPaid() {
   const accountIds = [...selectedAccountIds];
 
@@ -504,16 +568,36 @@ async function handleMarkSelectedAsPaid() {
 
 async function handlePostponeAccount(accountId) {
   try {
-    const newDate = formatApiDate(addDays(today, 7));
+    const currentAccount = accounts.find((account) => account.id === accountId);
+
+    if (!currentAccount) {
+      throw new AppDataError("Conta não encontrada.", "ACCOUNT_NOT_FOUND");
+    }
+
+    const postpone = calculatePostponeDate(currentAccount);
+    const newDate = formatApiDate(postpone.date);
     const account = await postponeAccount(accountId, newDate);
     selectedAccountIds.delete(accountId);
     renderAccounts();
     const localChangeLabel = APP_MODE === "demo" ? " Alteração local." : "";
-    showFeedback(`${account.name} foi adiada por 7 dias.${localChangeLabel}`);
+    const message = postpone.usesFallback
+      ? `${account.name} foi adiada por 7 dias.`
+      : `${account.name} foi adiada para ${formatDate(postpone.date)}.`;
+    showFeedback(`${message}${localChangeLabel}`);
   } catch (error) {
     showOperationError("postpone", error);
   }
 }
+
+filterControlsElement?.addEventListener("click", (event) => {
+  const filterButton = event.target.closest("[data-filter]");
+
+  if (!filterButton) {
+    return;
+  }
+
+  updateActiveFilter(filterButton.dataset.filter);
+});
 
 accountsListElement.addEventListener("change", (event) => {
   const selectInput = event.target.closest('[data-action="select"]');

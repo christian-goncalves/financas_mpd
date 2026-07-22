@@ -44,11 +44,13 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - Resumo coerente com os três grupos.
 - Nome, categoria, tipo, data, ARS e BRL iguais à base.
 - ARS principal e BRL secundário.
-- Checkbox, Adiar e Ignorar acessíveis em cada card.
+- Checkbox e Adiar acessíveis em cada card.
+- Filtros Todas, Vencidas, Hoje e Próximas disponíveis abaixo do resumo.
 - Botão de pagamento desativado sem seleção e ativo com seleção.
 - Mensagens simples de sucesso ou falha.
 - Persistência após recarga no modo `api`.
-- Conta paga ou ignorada desaparece; conta adiada permanece e usa a nova data.
+- Conta paga desaparece; conta adiada permanece e usa a nova data.
+- O botão de ignorar não fica exposto no frontend durante a validação atual.
 - O status não é exibido como badge: deve ser inferido pelo agrupamento e confirmado na planilha.
 
 ### `contas_mensais`
@@ -147,7 +149,7 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 
 - **Pré-condição:** conta pendente reservada, fora dos lembretes do dia, e snapshot realizado.
 - **Ação:** pressionar Adiar duas vezes no mesmo dia.
-- **Interface:** primeira ação usa `data do teste + 7 dias` e reagrupa o card; repetição não cria novo efeito.
+- **Interface:** primeira ação usa `vencimento original - 2 dias` quando essa data for futura; se a conta já venceu, vence hoje, vence amanhã ou vence em até dois dias, usa `data do teste + 7 dias`. O card é reagrupado pela nova data efetiva.
 - **Base:** `status = adiada`, `adiada_para` correta e `vencimento` preservado; repetição não muda `atualizado_em`.
 - **Aprovação:** data efetiva, grupo e idempotência conferem.
 

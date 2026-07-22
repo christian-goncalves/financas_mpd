@@ -16,7 +16,7 @@ Incluído:
 - listagem e agrupamento das contas;
 - apresentação de ARS e BRL;
 - identificação de contas manuais e em débito automático;
-- seleção, pagamento, adiamento e ignorar;
+- seleção, pagamento, adiamento e ignorar via endpoint controlado;
 - reflexo dos status na interface e em `contas_mensais`;
 - registros e deduplicação de notificações;
 - cotação mensal e geração idempotente de ocorrências;
@@ -58,13 +58,15 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - Cabeçalho somente com “Finanças MPD”.
 - Resumo com Vencidas, Vencem hoje e Próximas.
 - Quantidade do resumo igual à quantidade de cards em cada grupo.
+- Filtros locais Todas, Vencidas, Hoje e Próximas abaixo do resumo.
 - Cards com nome, categoria, tipo, data, ARS e BRL.
 - ARS como valor principal e BRL como secundário.
 - `Manual` e `Débito aut.` coerentes com a configuração.
 - Botão de pagamento desativado sem seleção e ativo após selecionar.
 - Cancelamento limpa a seleção sem persistência.
-- Pagamento e ignorar removem o card após sucesso.
+- Pagamento remove o card após sucesso; ignorar permanece como comportamento de endpoint controlado, sem botão no frontend atual.
 - Adiamento mantém o card, usa a nova data e recalcula seu grupo.
+- Trocar filtro limpa seleção e não altera os contadores globais.
 - Recarregar preserva operações confirmadas pela API.
 - Em falha, a interface mantém o estado anterior e mostra mensagem simples.
 - Layout utilizável no Safari e quando instalado na tela inicial do iPhone.
@@ -169,15 +171,24 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - **Status inicial:** `Pendente`
 - **Pré-condição:** conta pendente reservada, sem conflito com lembrete do dia, e snapshot realizado.
 - **Ação manual:** pressionar Adiar e recarregar.
-- **Resultado esperado na interface:** feedback, data igual a sete dias após a data do teste e card no grupo correspondente.
+- **Resultado esperado na interface:** feedback, data igual a `vencimento original - 2 dias` quando futura; fallback de sete dias após a data do teste para contas vencidas ou que vencem em até dois dias; card no grupo correspondente.
 - **Resultado esperado na base:** `status = adiada`, `adiada_para` e `atualizado_em` preenchidos; vencimento original preservado.
 - **Critério de aprovação:** data, agrupamento e colunas alteradas correspondem ao contrato.
+
+### TM-07A — Filtros locais da lista
+
+- **Status inicial:** `Pendente`
+- **Pré-condição:** listagem carregada com ao menos uma conta em qualquer grupo.
+- **Ação manual:** alternar entre Todas, Vencidas, Hoje e Próximas.
+- **Resultado esperado na interface:** cada filtro mostra somente os cards do grupo escolhido; Todas mostra todos os grupos; filtro vazio mostra mensagem de ausência; o resumo superior não muda.
+- **Resultado esperado na base:** nenhuma alteração.
+- **Critério de aprovação:** filtros não chamam API, limpam seleção ativa e não modificam contadores globais.
 
 ### TM-08 — Ignorar conta
 
 - **Status inicial:** `Pendente`
 - **Pré-condição:** conta pendente reservada e snapshot realizado.
-- **Ação manual:** pressionar Ignorar e recarregar.
+- **Ação manual:** executar o endpoint de ignorar por cliente HTTP controlado e recarregar.
 - **Resultado esperado na interface:** card removido e ainda ausente após recarga.
 - **Resultado esperado na base:** `status = ignorada`, `ignorada_em` e `atualizado_em` preenchidos; demais campos preservados.
 - **Critério de aprovação:** somente a ocorrência escolhida é afetada.
