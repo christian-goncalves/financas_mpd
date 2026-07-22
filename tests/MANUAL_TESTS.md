@@ -62,8 +62,8 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - Cards com nome, categoria, tipo, data, ARS e BRL.
 - ARS como valor principal e BRL como secundário.
 - `Manual` e `Débito aut.` coerentes com a configuração.
-- Botão de pagamento desativado sem seleção e ativo após selecionar.
-- Cancelamento limpa a seleção sem persistência.
+- Botão de pagamento ausente sem seleção e visível como `Pagar` após selecionar.
+- Desmarcar checkboxes ou trocar filtro limpa seleção sem persistência.
 - Pagamento remove o card após sucesso; ignorar permanece como comportamento de endpoint controlado, sem botão no frontend atual.
 - Adiamento mantém o card, usa a nova data e recalcula seu grupo.
 - Trocar filtro limpa seleção e não altera os contadores globais.
@@ -152,8 +152,8 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 
 - **Status inicial:** `Pendente`
 - **Pré-condição:** nenhuma conta selecionada.
-- **Ação manual:** selecionar duas contas e cancelar a seleção.
-- **Resultado esperado na interface:** pagamento habilitado durante a seleção e desabilitado depois do cancelamento.
+- **Ação manual:** selecionar duas contas e depois desmarcá-las ou trocar o filtro ativo.
+- **Resultado esperado na interface:** botão `Pagar` aparece durante a seleção e desaparece quando não houver seleção.
 - **Resultado esperado na base:** nenhuma alteração.
 - **Critério de aprovação:** estado visual retorna integralmente ao inicial.
 

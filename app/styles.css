@@ -178,8 +178,7 @@ button {
   position: sticky;
   z-index: 10;
   top: 0;
-  display: grid;
-  gap: 0.55rem;
+  display: block;
   margin: 1rem 0;
   padding: 0.65rem;
   background: rgba(243, 245, 241, 0.94);
@@ -488,7 +487,6 @@ button {
 }
 
 @media (min-width: 32rem) {
-  .selection-bar { grid-template-columns: minmax(0, 1fr) auto; }
   .button--secondary { padding-inline: 1rem; }
 }
 

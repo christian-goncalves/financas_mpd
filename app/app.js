@@ -18,8 +18,8 @@ const FEEDBACK_DURATION_MS = 3000;
 
 // Elementos e estado da aplicação
 const accountsListElement = document.querySelector("#accounts-list");
+const selectionBarElement = document.querySelector(".selection-bar");
 const markPaidButton = document.querySelector("#mark-paid-button");
-const cancelSelectionButton = document.querySelector("#cancel-selection-button");
 const feedbackElement = document.querySelector("#feedback");
 const statusElement = document.querySelector("#app-status");
 const filterControlsElement = document.querySelector(".filter-bar");
@@ -432,11 +432,10 @@ function updateFilterControls() {
 
 function updateSelectionActions() {
   const hasSelection = selectedAccountIds.size > 0;
-  markPaidButton.disabled = !hasSelection || isPaymentInProgress;
-  markPaidButton.textContent = isPaymentInProgress ? "Marcando..." : "Marcar como pagas";
+  selectionBarElement.hidden = !hasSelection;
+  markPaidButton.disabled = isPaymentInProgress;
+  markPaidButton.textContent = isPaymentInProgress ? "Pagando..." : "Pagar";
   markPaidButton.setAttribute("aria-busy", String(isPaymentInProgress));
-  cancelSelectionButton.hidden = !hasSelection;
-  cancelSelectionButton.disabled = isPaymentInProgress;
 
   accountsListElement
     .querySelectorAll(".account-select, .account-icon-action")
@@ -628,11 +627,6 @@ accountsListElement.addEventListener("click", (event) => {
 
 markPaidButton.addEventListener("click", () => {
   void handleMarkSelectedAsPaid();
-});
-
-cancelSelectionButton.addEventListener("click", () => {
-  clearSelection();
-  showFeedback("Seleção cancelada.");
 });
 
 function updateStatus(message) {

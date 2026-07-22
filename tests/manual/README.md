@@ -46,7 +46,7 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - ARS principal e BRL secundário.
 - Checkbox e Adiar acessíveis em cada card.
 - Filtros Todas, Vencidas, Hoje e Próximas disponíveis abaixo do resumo.
-- Botão de pagamento desativado sem seleção e ativo com seleção.
+- Botão de pagamento oculto sem seleção e exibido como `Pagar` com seleção.
 - Mensagens simples de sucesso ou falha.
 - Persistência após recarga no modo `api`.
 - Conta paga desaparece; conta adiada permanece e usa a nova data.
@@ -124,8 +124,8 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 ### TM-06 — Seleção e cancelamento
 
 - **Pré-condição:** nenhuma seleção ativa.
-- **Ação:** selecionar duas contas e pressionar Cancelar seleção.
-- **Interface:** pagamento é habilitado; cancelar limpa tudo e o desabilita novamente.
+- **Ação:** selecionar duas contas e depois desmarcar os checkboxes ou trocar o filtro ativo.
+- **Interface:** `Pagar` aparece durante a seleção e desaparece quando a seleção é limpa.
 - **Base:** nenhuma alteração.
 - **Aprovação:** interface retorna ao estado inicial.
 

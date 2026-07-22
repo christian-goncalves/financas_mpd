@@ -37,13 +37,13 @@ Cada conta deve exibir:
 
 O usuário pode selecionar uma ou mais contas.
 
-### Marcar como pagas
+### Pagar
 
-O botão começa desativado. Ao selecionar contas, o botão fica ativo.
+O botão não aparece sem seleção. Ao selecionar uma ou mais contas pelo checkbox, aparece somente um botão ativo com o texto “Pagar”.
 
-### Cancelar seleção
+### Limpar seleção
 
-Remove todas as seleções sem alterar dados.
+Não há botão dedicado de cancelamento na interface atual. O usuário remove a seleção desmarcando os checkboxes ou trocando o filtro ativo.
 
 ### Adiar
 
