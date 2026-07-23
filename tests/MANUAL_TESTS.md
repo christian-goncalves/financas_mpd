@@ -143,10 +143,10 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 
 - **Status inicial:** `Pendente`
 - **Pré-condição:** ao menos uma conta `debito_automatico` exibível.
-- **Ação manual:** localizar a conta, conferir o rótulo e selecioná-la sem confirmar pagamento.
-- **Resultado esperado na interface:** rótulo `Débito aut.` e mesmos controles disponíveis para conta manual.
-- **Resultado esperado na base:** nenhuma alteração apenas por localizar ou selecionar.
-- **Critério de aprovação:** tipo correto e ausência de etapa bancária adicional.
+- **Ação manual:** localizar a conta, conferir o rótulo e selecioná-la sem confirmar pagamento; depois validar uma ocorrência vencida pela rotina automática.
+- **Resultado esperado na interface:** rótulo `Débito aut.` e pagamento manual disponível; a conta some após a liquidação de `D+1`.
+- **Resultado esperado na base:** seleção isolada não altera nada; a rotina usa `status = paga`, timestamps iguais e limpa `adiada_para`.
+- **Critério de aprovação:** tipo correto, vencimento original preservado e repetição com zero atualizações.
 
 ### TM-05 — Seleção e cancelamento
 
@@ -220,14 +220,14 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - **Resultado esperado na base:** primeira execução registra uma linha por conta/etapa; segunda não duplica chaves já `enviada`; `contas_mensais` fica intacta.
 - **Critério de aprovação:** quantidade de registros igual aos candidatos e repetição sem novo envio.
 
-### TM-12 — Idempotência da geração mensal
+### TM-12 — Geração contínua D+30
 
 - **Status inicial:** `Pendente`
-- **Pré-condição:** competência seguinte já completa e com uma única cotação válida.
+- **Pré-condição:** todas as competências necessárias na janela inclusiva hoje–D+30 possuem uma única cotação válida.
 - **Ação manual:** executar manualmente o gerador duas vezes.
 - **Resultado esperado na interface:** quantidade e cards não mudam.
-- **Resultado esperado na base:** nenhuma linha nova; pares `despesa_id + competencia` continuam únicos.
-- **Critério de aprovação:** ambas as execuções registram zero inclusões.
+- **Resultado esperado na base:** somente ocorrências ausentes dentro da janela são criadas; histórico é preservado e os pares `despesa_id + competencia` continuam únicos.
+- **Critério de aprovação:** repetição registra zero inclusões, mês curto é ajustado e cotação ausente aborta sem escrita parcial.
 
 ### TM-13 — Idempotência das ações
 

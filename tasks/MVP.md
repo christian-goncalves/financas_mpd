@@ -61,9 +61,12 @@ Executar um endpoint por vez e registrar os testes antes de avançar.
 - [x] Definir a regra de cotação ARS/BRL do MVP.
 - [x] Criar e validar a aba `cotacoes_mensais` com dados fictícios.
 - [x] Criar o workflow diário de geração de contas mensais.
+- [x] Refatorar e publicar a geração contínua inclusiva entre hoje e `D+30`.
 - [x] Ler somente despesas ativas.
 - [x] Evitar duplicidade por `despesa_id + competencia`.
 - [x] Testar geração e repetição idempotente com dados fictícios.
+- [x] Criar, testar e publicar a liquidação diária de débitos automáticos em `D+1`.
+- [x] Diferenciar as etapas de lembrete por tipo de pagamento usando o vencimento original.
 
 ### Disponibilização e integração do PWA
 
@@ -105,6 +108,9 @@ Plano e registro operacional: [testes manuais](../tests/MANUAL_TESTS.md) e [evid
 - [x] Testar o fluxo completo de geração, visualização, ações e lembretes.
   - [x] Gerar agosto de 2026 e repetir a execução sem criar duplicidades.
   - [x] Executar o lembrete real do dia, registrar os três resultados e repetir sem reenvio.
+  - [x] Regularizar os seis débitos automáticos vencidos e repetir a liquidação com zero atualizações.
+  - [x] Validar a janela D+30, ausência de cotação, mês curto e repetição sem duplicidade.
+  - [x] Encerrar o ambiente temporário de simulação.
   - [x] Validar a PWA móvel sem sessão e a rejeição pública sem Bearer token.
   - [x] Abrir a PWA por magic link válido e testar listagem, pagamento, adiamento e ignorar com restauração do estado.
 - [ ] Testar no iPhone.

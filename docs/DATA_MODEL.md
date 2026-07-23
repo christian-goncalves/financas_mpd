@@ -120,17 +120,31 @@ Regra operacional:
 Regra operacional da geração mensal:
 
 - o workflow executa diariamente às `06:00` em `America/Sao_Paulo`;
-- cada execução garante as ocorrências da competência do mês civil seguinte;
+- cada execução calcula a janela inclusiva entre a data local e `D+30`;
+- somente ocorrências cujo vencimento ajustado esteja dentro dessa janela são consideradas;
+- contas antigas não são removidas quando saem da janela e permanecem como histórico;
 - somente linhas com `ativa = sim` são elegíveis;
 - a combinação `despesa_id + competencia` é consultada antes da escrita e não pode ser duplicada;
 - `conta_id` é determinístico no formato `conta_YYYY_MM_<despesa_id>`;
 - quando `dia_vencimento` não existe no mês-alvo, usa-se o último dia válido do mês;
-- cotação ausente, duplicada ou não positiva encerra a execução antes da escrita.
+- todas as competências necessárias à janela são validadas antes da escrita;
+- cotação ausente, duplicada ou não positiva encerra integralmente a execução antes da escrita.
+
+Com a configuração atual, a cotação de setembro de 2026 deve estar cadastrada até `2026-08-02`, quando `2026-09-01` passa a integrar a janela `D+30`.
+
+Regra operacional dos débitos automáticos:
+
+- o workflow de liquidação executa diariamente às `00:05` em `America/Sao_Paulo`;
+- contas `pendente` ou `adiada`, relacionadas a despesas `debito_automatico` e com `vencimento` original anterior à data local, tornam-se `paga`;
+- `pago_em` e `atualizado_em` recebem o mesmo timestamp, e `adiada_para` é limpo;
+- contas já pagas, ignoradas ou canceladas não são regravadas;
+- a repetição sem novos vencidos produz zero atualizações.
 
 ## Uso por integração
 
 - `GET /api/accounts` lê `contas_mensais` e cruza `despesas_config` por `despesa_id`.
 - Os três endpoints de alteração leem e atualizam somente `contas_mensais`.
-- O workflow de geração mensal lerá `cotacoes_mensais` e copiará a cotação aplicada para `contas_mensais.cotacao_usada`.
+- O workflow de geração mensal lê `cotacoes_mensais` e copia a cotação aplicada para `contas_mensais.cotacao_usada`.
+- O workflow de liquidação atualiza somente os campos operacionais de débitos automáticos vencidos em `contas_mensais`.
 - A Fase 4 lê contas exibíveis e grava os resultados de envio em `notificacoes`.
 - O PWA nunca acessa esta planilha diretamente.

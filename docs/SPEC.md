@@ -64,6 +64,11 @@ Os filtros Todas, Vencidas, Hoje e Próximas alteram somente a renderização lo
 - Conta paga não recebe novos lembretes.
 - Conta ignorada não recebe novos lembretes naquela competência.
 - Conta adiada volta a aparecer na nova data.
+- Conta manual recebe lembretes em `D-5`, `D-2`, `D-1`, `D0` e `D+1`.
+- Conta em débito automático recebe lembretes somente em `D-2`, `D-1` e `D0`.
+- O lembrete usa sempre o vencimento original, inclusive para uma conta adiada.
+- No início de `D+1`, às `00:05`, uma conta em débito automático ainda `pendente` ou `adiada` é marcada automaticamente como paga; o vencimento original permanece preservado.
+- A geração diária das `06:00` mantém a janela inclusiva de ocorrências entre hoje e `D+30`.
 - Cada lembrete do WhatsApp usa uma linha compacta no formato ``*nome* - _situação_ - `ARS valor` ``; o nome aparece em negrito, a situação em itálico, o valor ARS sem centavos em monoespaçado e o BRL não aparece.
 - A mensagem consolidada inclui a data base e a URL pública do PWA. O preview do link usa os metadados Open Graph da aplicação.
 - Conta automática aparece identificada como “Débito aut.” na linha de categoria e tipo, sem badge interno.

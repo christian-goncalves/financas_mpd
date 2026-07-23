@@ -539,3 +539,17 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - A PWA anônima em viewport 430 x 932 removeu o aviso de acesso, renderizou 36 IDs de conta e exibiu o controle de pagamento.
 - A Vercel não registrou erros de runtime após o deploy.
 - Risco aceito para esta fase: qualquer pessoa com a URL pode ler e alterar as contas; a autenticação deverá ser refatorada antes de ampliar o uso.
+
+## Automação operacional D+30 e débitos automáticos
+
+- Data: 2026-07-23 (`America/Sao_Paulo`).
+- Geração `YZ70BdQtS7LPE72r`: execuções `6973` e `6975` validaram a janela inclusiva `2026-07-23`–`2026-08-22` e gravaram zero linhas, pois as 18 ocorrências de agosto já existiam.
+- O teste isolado `6977` abortou com `RATE_NOT_FOUND_2026-08`, sem escrita; o teste `6980` validou virada de competência e ajuste de dia 31 em mês curto.
+- A geração foi publicada na versão `3223abbe-f9dd-4d45-a311-ed9f9c4a8632`, agenda diária às `06:00`.
+- O workflow `FINANCAS-MPD - Liquidar débitos automáticos` foi criado com ID `uwtIrs8q6lCm6ZDZ`.
+- A execução `6974` regularizou seis débitos automáticos vencidos de julho; todos receberam o mesmo timestamp em `pago_em` e `atualizado_em` e tiveram `adiada_para` limpo.
+- A repetição `6976` retornou zero atualizações.
+- Depois da validação, Christian confirmou o pagamento manual das demais contas de julho pelo PWA; a API passou a retornar somente as 18 contas de agosto, sem que o workflow automático fosse reexecutado ou restaurasse essas ações.
+- A liquidação foi publicada na versão `fc3e8c7e-a5dc-450c-b4e5-98cba9edf817`, agenda diária às `00:05`.
+- O lembrete foi publicado na versão `094d5c02-052d-4fa1-87ed-b544f0acdfd5`: manual usa `D-5/D-2/D-1/D0/D+1`, automático usa `D-2/D-1/D0`, sempre pelo vencimento original.
+- O workflow SIM `YQ2BC4HT02Vwjuuc` foi arquivado. As abas `643572288` e `202607222` foram excluídas após snapshot, e nenhum workflow ativo as referencia.

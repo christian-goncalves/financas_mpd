@@ -10,7 +10,8 @@ Este documento apresenta o inventário funcional dos workflows do MVP. O contrat
 - A planilha do MVP contém a massa controlada real: 18 despesas e 36 contas mensais entre julho e agosto de 2026.
 - A credencial Google Sheets e o acesso de leitura à planilha foram confirmados no n8n em 2026-07-21.
 - A regra de cotação manual mensal foi definida e a aba `cotacoes_mensais` foi criada, validada com dado fictício e localizada pela credencial Google Sheets do n8n.
-- O workflow diário de geração mensal foi criado e validado em modo de teste, sem publicação.
+- O workflow diário de geração contínua foi validado, publicado e ativado às `06:00`.
+- O workflow diário de liquidação de débitos automáticos foi criado, validado, publicado e ativado às `00:05`.
 - O PWA foi publicado em `https://financas-mpd.vercel.app`.
 - O token final e seu processo de rotação/revogação estão registrados em [ACCESS_TOKEN.md](ACCESS_TOKEN.md).
 - Os quatro workflows da API não retêm dados de execução, erros, testes manuais ou progresso por nó.
@@ -24,7 +25,7 @@ Este documento apresenta o inventário funcional dos workflows do MVP. O contrat
 - A credencial `Evolution account`, a instância `8611` e o grupo `FINANÇAS | MPD` (`120363429681130867@g.us`) foram validados sem exposição de segredo.
 - Um envio simples e controlado foi aceito pela Evolution API com HTTP `201`.
 - O workflow diário de lembretes consolidados foi criado, validado e publicado, incluindo registro de sucesso e erro, deduplicação e falha controlada.
-- As etapas `D-5`, `D-2`, `D-1`, `D0` e `D+1` foram implementadas e validadas com dados fictícios, sem executar o envio diário.
+- As etapas foram especializadas por tipo: manual usa `D-5`, `D-2`, `D-1`, `D0`, `D+1`; débito automático usa `D-2`, `D-1`, `D0`.
 - O registro de resultados `enviada` ou `erro` na aba `notificacoes` foi implementado sem executar o workflow.
 - A prevenção de reenvio por `conta_id + etapa + canal` foi implementada e validada sem executar o workflow.
 - A geração mensal criou 18 contas de agosto e a repetição não criou duplicidades.
@@ -64,20 +65,20 @@ Os quatro workflows da API foram conectados e testados contra a mesma base fict�
 
 ## Gerar contas mensais
 
-Workflow implementado e validado em modo de teste.
+Workflow implementado, validado e publicado.
 
 - Nome: `FINANCAS-MPD - Gerar contas mensais`.
 - ID: `YZ70BdQtS7LPE72r`.
-- Estado: `active: false`, sem versão publicada.
+- Estado: publicado e ativo.
 - Agenda configurada: diariamente às `06:00`, no fuso `America/Sao_Paulo`.
-- Competência-alvo: mês civil seguinte ao momento da execução.
+- Janela-alvo: inclusiva entre a data local da execução e `D+30`.
 - Vencimentos de dias inexistentes no mês são limitados ao último dia válido.
 
 Regra de cotação definida:
 
-- ler uma cotação manual por competência em `cotacoes_mensais`;
+- ler uma cotação manual por competência necessária à janela em `cotacoes_mensais`;
 - interpretar a cotação como ARS equivalentes a `1 BRL`;
-- interromper sem escrita quando a cotação estiver ausente, duplicada ou inválida;
+- validar todas as competências antes da escrita e abortar integralmente quando qualquer cotação estiver ausente, duplicada ou inválida;
 - normalizar todas as ocorrências para ARS como principal e BRL como convertido;
 - copiar a taxa aplicada para `cotacao_usada` e não recalcular contas já geradas.
 
@@ -85,18 +86,41 @@ Função:
 
 - Executar diariamente.
 - Ler despesas ativas em `despesas_config`.
-- Criar em `contas_mensais` as ocorrências futuras necessárias.
+- Criar em `contas_mensais` somente as ocorrências ausentes cujo vencimento esteja entre hoje e `D+30`.
+- Preservar contas antigas como histórico.
 - Evitar duplicidade pela combinação `despesa_id + competencia`.
 - Aplicar a regra de cotação manual mensal definida para o MVP.
 
-Validação operacional mais recente, realizada em 2026-07-21:
+Validação operacional mais recente, realizada em 2026-07-23:
 
-- a execução `6793` criou 18 ocorrências para `2026-08`, uma para cada despesa ativa;
-- todas usaram a cotação mensal `290 ARS/BRL` e totalizaram ARS `2.493.545` / BRL `8.598,43`;
-- a execução repetida `6794` encontrou as 18 chaves `despesa_id + competencia` e gravou zero linhas;
-- a planilha permaneceu com 36 contas, 18 para julho e 18 para agosto de 2026.
+- as execuções `6973` e `6975` calcularam `2026-07-23`–`2026-08-22`, encontraram as 18 ocorrências de agosto já existentes e gravaram zero linhas;
+- a execução isolada `6977` falhou com `RATE_NOT_FOUND_2026-08`, sem escrita;
+- a execução isolada `6980` validou virada de mês e ajuste de dia 31 para o último dia de fevereiro;
+- versão publicada: `3223abbe-f9dd-4d45-a311-ed9f9c4a8632`.
 
-Este workflow pertence à Fase 3 e permanece deliberadamente não publicado e inativo. Execuções para validação são manuais e devem seguir o checkpoint definido em `tests/manual/README.md`.
+## Liquidar débitos automáticos
+
+Workflow criado e publicado em 2026-07-23:
+
+- Nome: `FINANCAS-MPD - Liquidar débitos automáticos`.
+- ID: `uwtIrs8q6lCm6ZDZ`.
+- Estado: publicado e ativo.
+- Horário: diariamente às `00:05`, em `America/Sao_Paulo`.
+- Versão publicada: `fc3e8c7e-a5dc-450c-b4e5-98cba9edf817`.
+
+Função:
+
+- relacionar `contas_mensais` com `despesas_config`;
+- selecionar somente `pendente` ou `adiada` de tipo `debito_automatico` com `vencimento` original anterior ao dia;
+- escrever `status = paga`, o mesmo timestamp em `pago_em` e `atualizado_em`, e limpar `adiada_para`;
+- ignorar estados finais e não regravar uma conta já paga.
+
+Validação:
+
+- execução `6974`: 12 contas automáticas examinadas, 6 vencidas de julho atualizadas;
+- as seis linhas receberam o mesmo timestamp `2026-07-23T16:34:46.708-03:00`;
+- execução repetida `6976`: zero contas elegíveis e zero atualizações;
+- o endpoint público passou a retornar 30 contas exibíveis, com resumo `12 vencidas / 0 hoje / 18 próximas`.
 
 ## Enviar lembretes
 
@@ -114,7 +138,7 @@ Função:
 
 - Executar diariamente.
 - Ler contas pendentes ou adiadas.
-- Identificar as etapas de lembrete.
+- Identificar as etapas de lembrete pelo vencimento original.
 - Gerar uma mensagem consolidada.
 - Enviar para o grupo autorizado via Evolution API.
 - Registrar uma linha por conta e etapa em `notificacoes`, com `status_envio = enviada` ou `erro`.
@@ -126,19 +150,26 @@ Formato da mensagem:
 - uma linha por conta: ``*nome* - _situação_ - `ARS valor` ``;
 - nome em negrito, situação em itálico e valor ARS inteiro em monoespaçado;
 - valor convertido em BRL omitido para reduzir o volume;
-- URL `https://financas-mpd.vercel.app/` ao final, habilitando acesso ao PWA e o preview Open Graph;
-- o workflow de simulação mantém o prefixo `[SIMULAÇÃO]` e o aviso de que não representa cobrança real.
+- URL `https://financas-mpd.vercel.app/` ao final, habilitando acesso ao PWA e o preview Open Graph.
 
 O fluxo possui dez nós: Schedule, leitura de `despesas_config`, leitura de `contas_mensais`, leitura de `notificacoes`, preparação do consolidado, verificação de lembretes, envio pela Evolution API, preparação dos registros de sucesso e erro e append em `notificacoes`. A estrutura, as credenciais, a deduplicação e o tratamento de falha foram validados. A versão testada está publicada e ativa com execução diária às `08:00` em `America/Sao_Paulo`.
 
-Validação das etapas em 2026-07-21:
+Validação das etapas atualizada em 2026-07-23:
 
-- `D-5`, `D-2`, `D-1`, `D0` e `D+1` foram classificados por diferença exata entre a data efetiva e a data local;
-- contas adiadas usam `adiada_para`, e contas pendentes usam `vencimento`;
+- contas manuais usam `D-5`, `D-2`, `D-1`, `D0` e `D+1`;
+- débitos automáticos usam somente `D-2`, `D-1` e `D0`;
+- contas adiadas e pendentes usam sempre o `vencimento` original para calcular a etapa;
 - contas pagas, ignoradas e canceladas, além de despesas inativas, foram excluídas;
-- datas civis impossíveis e conta adiada sem data efetiva foram rejeitadas;
-- somente o nó `Code - Preparar lembrete consolidado` foi alterado;
-- o workflow permaneceu inativo e nenhum envio ou registro foi executado.
+- datas civis impossíveis foram rejeitadas;
+- teste isolado `6978` executou a lógica e bypassou Evolution/Sheets por pin data, sem envio ou escrita real;
+- versão publicada: `094d5c02-052d-4fa1-87ed-b544f0acdfd5`.
+
+## Ambiente de simulação encerrado
+
+- O workflow `FINANCAS-MPD - SIM - Lembretes WhatsApp` (`YQ2BC4HT02Vwjuuc`) foi arquivado em 2026-07-23.
+- As abas `Cópia de contas_mensais` (`643572288`) e `notificacoes_teste` (`202607222`) foram excluídas após snapshot.
+- Nenhum workflow ativo referencia esses dois `sheetId`.
+- O histórico da simulação permanece apenas em `tests/manual/EXECUTION_LOG.md`.
 
 Registro implementado em 2026-07-21:
 

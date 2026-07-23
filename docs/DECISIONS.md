@@ -62,13 +62,20 @@ Este documento registra decisões definitivas. Pontos ainda não resolvidos fica
 - Em pagamento múltiplo, todos os IDs serão validados antes da escrita e as alterações ocorrerão em uma única operação batch.
 - `updated_count` contará somente as linhas efetivamente alteradas; uma repetição totalmente idempotente retorna `updated_count: 0`.
 - Os mocks serão substituídos pelo Google Sheets um endpoint por vez, com teste e evidência antes do endpoint seguinte.
-- O workflow de geração mensal executará diariamente às `06:00` em `America/Sao_Paulo` e garantirá a competência do mês civil seguinte.
-- O workflow de lembretes executará diariamente às `08:00` em `America/Sao_Paulo`; permanecerá não publicado até concluir etapas, registro, deduplicação e testes de falha.
+- O workflow de liquidação executará diariamente às `00:05` em `America/Sao_Paulo` e marcará como pagas as contas de débito automático cujo vencimento original já passou.
+- A liquidação automática preenche `status = paga`, usa o mesmo timestamp em `pago_em` e `atualizado_em`, limpa `adiada_para` e é idempotente.
+- O workflow de geração executará diariamente às `06:00` em `America/Sao_Paulo` e garantirá a janela inclusiva entre hoje e `D+30`, sem remover histórico.
+- Antes de qualquer escrita, a geração validará todas as cotações mensais necessárias à janela; qualquer ausência, duplicidade ou valor inválido abortará integralmente a execução.
+- Na configuração atual, a cotação de setembro de 2026 deve ser cadastrada até `2026-08-02`.
+- O workflow de lembretes executará diariamente às `08:00` em `America/Sao_Paulo`.
+- Contas manuais recebem lembretes em `D-5`, `D-2`, `D-1`, `D0` e `D+1`; débitos automáticos recebem somente `D-2`, `D-1` e `D0`.
+- As etapas de lembrete são sempre calculadas pelo `vencimento` original, inclusive quando a conta está adiada.
 - Vencimentos configurados para dias inexistentes no mês-alvo serão ajustados ao último dia válido.
 - O identificador das ocorrências geradas será determinístico no formato `conta_YYYY_MM_<despesa_id>`.
 - Cada tentativa consolidada gerará uma linha em `notificacoes` por conta e etapa, mesmo que várias contas sejam enviadas na mesma mensagem.
 - `notificacao_id` usará o formato `notif_<execution_id>_<sequencia>_<conta_id>_<etapa>`, normalizado para caracteres seguros, garantindo unicidade entre tentativas sem substituir a chave de deduplicação funcional.
 - Somente `status_envio = enviada` bloqueará nova tentativa para a mesma combinação `conta_id + etapa + canal`; registros `erro`, outra etapa ou outro canal não bloquearão reenvio.
+- As abas temporárias `Cópia de contas_mensais` e `notificacoes_teste` foram removidas após a simulação, e o workflow `FINANCAS-MPD - SIM - Lembretes WhatsApp` foi arquivado.
 
 ## Interface
 

@@ -62,7 +62,8 @@ As fases devem ser implementadas e testadas uma por vez. [tasks/MVP.md](tasks/MV
 - Persistência, estados incompatíveis e idempotência possuem evidências registradas.
 - A cotação do MVP foi definida como manual, mensal e armazenada por competência.
 - A aba `cotacoes_mensais` foi criada e validada com dado fictício.
-- O workflow diário de geração mensal foi criado e validado com geração de três contas, filtro de despesa inativa e repetição idempotente.
+- O workflow diário de geração está publicado às `06:00` e mantém uma janela inclusiva de ocorrências entre hoje e `D+30`, com validação integral das cotações mensais.
+- O workflow de liquidação está publicado às `00:05` e marca débitos automáticos vencidos como pagos de forma idempotente.
 - O PWA foi publicado em produção em `https://financas-mpd.vercel.app` e seus arquivos essenciais foram validados.
 - O código e o token de acesso foram preservados para futura refatoração, mas a exigência foi temporariamente desativada para a validação pública do MVP.
 - Os quatro workflows da API foram configurados para não reter dados de execuções bem-sucedidas, com erro ou manuais, nem progresso por nó.
@@ -71,7 +72,7 @@ As fases devem ser implementadas e testadas uma por vez. [tasks/MVP.md](tasks/MV
 - O CORS está restrito à origem final `https://financas-mpd.vercel.app` no EasyPanel, n8n e proxy Traefik.
 - O PWA usa o modo `api` com a base pública `https://n8n.autamacao.shop/api` e, durante a validação do MVP, acessa os quatro endpoints sem token.
 - Listagem, adiamento, ignorar e pagamento foram executados pelo PWA de produção com dados fictícios; a planilha foi restaurada ao baseline `1/1/1` ao final.
-- O workflow de geração mensal também continua não publicado.
+- O workflow de lembretes está publicado às `08:00`; contas manuais usam cinco etapas e débitos automáticos usam somente `D-2`, `D-1` e `D0`.
 
 ## Deploy do PWA
 

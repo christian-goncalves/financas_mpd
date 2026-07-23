@@ -140,10 +140,10 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 ### TM-08 — Pagamento de débito automático
 
 - **Pré-condição:** conta automática pendente reservada e snapshot realizado.
-- **Ação:** selecionar e marcar como paga.
-- **Interface:** mesmo fluxo do pagamento manual, sem confirmação bancária adicional.
-- **Base:** mesmas alterações do TM-07.
-- **Aprovação:** conta automática pode ser confirmada como paga conforme o MVP.
+- **Ação:** validar o pagamento manual opcional; em teste separado, deixar outra conta passar para `D+1` e executar a liquidação das `00:05`.
+- **Interface:** pagamento manual continua disponível; após a liquidação automática, o card desaparece.
+- **Base:** em `D+1`, `status = paga`, `pago_em = atualizado_em`, `adiada_para` vazio e vencimento preservado.
+- **Aprovação:** repetição da liquidação atualiza zero linhas.
 
 ### TM-09 — Adiamento e repetição
 
@@ -185,13 +185,13 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - **Base:** primeira execução cria uma linha por conta/etapa; segunda não cria linha para chave já `enviada`; `contas_mensais` fica idêntica.
 - **Aprovação:** quantidade igual aos candidatos e repetição sem novo envio. Sem candidato, aguardar a próxima ocorrência natural; não fabricar dados.
 
-### TM-14 — Geração mensal idempotente
+### TM-14 — Geração contínua D+30
 
-- **Pré-condição:** competência seguinte já completa e cotação única válida.
+- **Pré-condição:** todas as competências necessárias entre hoje e `D+30` possuem uma única cotação válida.
 - **Ação:** executar manualmente o gerador duas vezes.
 - **Interface:** quantidade e cards permanecem iguais.
-- **Base:** nenhuma nova linha e todos os pares `despesa_id + competencia` permanecem únicos.
-- **Aprovação:** ambas as execuções resultam em zero inclusões.
+- **Base:** somente ocorrências ausentes dentro da janela são criadas; pares `despesa_id + competencia` permanecem únicos e contas antigas são preservadas.
+- **Aprovação:** repetição resulta em zero inclusões; cotação ausente aborta sem escrita; dia inexistente usa o último dia do mês.
 
 ### TM-15 — Instalação no iPhone
 
@@ -230,7 +230,7 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 1. **Checkpoint 0 — documentação e baseline:** preencher o log e validar TM-01 a TM-05.
 2. **Checkpoint 1 — iPhone sem escrita:** executar TM-06, TM-15 e TM-16.
 3. **Checkpoint 2 — ações persistentes:** executar TM-07 a TM-11, uma conta por vez e com restauração comprovada.
-4. **Checkpoint 3 — geração:** executar TM-14 somente com a competência seguinte completa.
+4. **Checkpoint 3 — automações diárias:** executar a liquidação idempotente de TM-08 e a geração D+30 de TM-14 com cotações completas.
 5. **Checkpoint 4 — notificações:** executar TM-12; TM-13 exige autorização imediatamente anterior ao envio.
 6. **Checkpoint 5 — usuária principal:** executar TM-17 após estabilidade técnica.
 7. **Checkpoint final:** executar TM-18 e emitir o veredito da rodada.

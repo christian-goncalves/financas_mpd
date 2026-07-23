@@ -567,3 +567,52 @@ Contas registradas:
 | Workflow SIM | Atualizado, manual e inativo |
 | Workflow real | Atualizado e publicado na versão `376608de-40b3-4e7a-a547-b022776ba334` |
 | Validação sem reenvio | Execução SIM `6966`: `success`, `NO_REMINDERS`, 8 duplicidades bloqueadas e nenhum envio |
+
+## Automação de débitos e geração contínua D+30 — 2026-07-23
+
+### Baseline
+
+| Campo | Resultado |
+|---|---|
+| Despesas | 18 ativas: 12 manuais e 6 em débito automático |
+| Contas | 36 ocorrências, 18 em julho e 18 em agosto |
+| Cotações | `2026-07 = 290` e `2026-08 = 290` |
+| Débitos vencidos elegíveis | 6 ocorrências de julho |
+| Snapshot | Conteúdo, validações e formatos de `contas_mensais`; conteúdo integral das duas abas temporárias antes da remoção |
+
+### Workflows e testes
+
+| Teste | Resultado | Evidência |
+|---|---|---|
+| Geração hoje–D+30 | Aprovado | `6973`: janela `2026-07-23`–`2026-08-22`, 18 ocorrências elegíveis, 18 existentes, 0 inclusões |
+| Idempotência da geração | Aprovado | `6975`: 0 inclusões na repetição |
+| Cotação ausente | Aprovado | `6977`: `RATE_NOT_FOUND_2026-08`; `contas_mensais` permaneceu com 36 linhas |
+| Virada e mês curto | Aprovado | `6980`: teste isolado com dia 31 e fevereiro, sem acesso real ao Sheets |
+| Etapas por tipo | Aprovado | `6978`: teste isolado com pin data; manual nas cinco etapas e automático limitado a `D-2/D-1/D0`, usando vencimento original |
+| Regularização de débitos | Aprovado | `6974`: 6 atualizações |
+| Idempotência da liquidação | Aprovado | `6976`: 0 atualizações |
+| Coerência da API/PWA | Aprovado | `GET /api/accounts`: 30 contas, resumo `12 vencidas / 0 hoje / 18 próximas`; nenhuma conta automática paga foi devolvida |
+
+As seis contas liquidadas receberam `status = paga`, `pago_em = atualizado_em = 2026-07-23T16:34:46.708-03:00` e `adiada_para` vazio. Valores, moedas, cotação, competência, vencimento e IDs foram preservados.
+
+Após essa validação, Christian confirmou ter marcado manualmente como pagas as demais contas de julho pelo PWA. Essa ação concorrente não foi produzida nem restaurada pelo workflow de liquidação. A releitura final de `GET /api/accounts` retornou somente as 18 contas de agosto, com resumo `0 vencidas / 0 hoje / 18 próximas`.
+
+### Publicação
+
+| Workflow | ID | Versão ativa | Agenda |
+|---|---|---|---|
+| Liquidar débitos automáticos | `uwtIrs8q6lCm6ZDZ` | `fc3e8c7e-a5dc-450c-b4e5-98cba9edf817` | diária `00:05` |
+| Gerar contas mensais | `YZ70BdQtS7LPE72r` | `3223abbe-f9dd-4d45-a311-ed9f9c4a8632` | diária `06:00` |
+| Lembretes consolidados | `yQgTRvFBZvvsYKXs` | `094d5c02-052d-4fa1-87ed-b544f0acdfd5` | diária `08:00` |
+
+### Encerramento da simulação
+
+| Item | Resultado |
+|---|---|
+| Workflow SIM `YQ2BC4HT02Vwjuuc` | Arquivado |
+| `Cópia de contas_mensais` (`643572288`) | Excluída |
+| `notificacoes_teste` (`202607222`) | Excluída |
+| Referências em workflows ativos | Nenhuma |
+| Abas finais | `despesas_config`, `contas_mensais`, `notificacoes`, `cotacoes_mensais` e `Dashboard` oculto |
+
+O histórico da simulação acima foi preservado como evidência. As instruções vigentes não dependem mais do workflow ou das abas removidas.

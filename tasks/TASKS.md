@@ -6,7 +6,7 @@ O plano executável e a fonte oficial de status do MVP estão em [MVP.md](MVP.md
 
 - Fase atual: **Fase 5 — Validação**.
 - Estado: **em andamento**.
-- Massa controlada cadastrada: **18 despesas recorrentes e 36 contas mensais, distribuídas entre julho e agosto de 2026**.
+- Massa controlada cadastrada: **18 despesas recorrentes e 36 contas mensais, distribuídas entre julho e agosto de 2026; todas as contas de julho estão pagas, sendo seis débitos automáticos liquidados pela rotina e as demais confirmadas manualmente por Christian**.
 - Validação concluída nesta rodada: **geração, visualização autenticada, ações, restauração, lembrete real, auditoria e deduplicação**.
 - Próxima tarefa oficial: **testar o PWA no iPhone**.
 - Limite da próxima tarefa: validar o uso móvel antes da instalação na tela inicial ou da validação com Michele.
@@ -25,6 +25,9 @@ O plano executável e a fonte oficial de status do MVP estão em [MVP.md](MVP.md
 - Quatro fluxos públicos validados pelo PWA de produção; massa fictícia restaurada e política de não retenção confirmada.
 - Teste controlado de falha do lembrete registrado em `notificacoes`, com `contas_mensais` inalterada e deduplicação confirmada.
 - Workflow diário de lembretes `yQgTRvFBZvvsYKXs` publicado na versão testada, ativo com um gatilho às `08:00` em `America/Sao_Paulo`.
+- Workflow de liquidação `uwtIrs8q6lCm6ZDZ` publicado e ativo diariamente às `00:05`.
+- Workflow de geração `YZ70BdQtS7LPE72r` publicado e ativo diariamente às `06:00`, com janela inclusiva hoje–D+30.
+- Workflow SIM arquivado; as abas temporárias de contas e notificações foram removidas.
 - Execuções manuais `6793` e `6794` geraram agosto e comprovaram idempotência; `6796` enviou três lembretes reais e `6797` não reenviou as mesmas etapas.
 - O modo público foi validado sem token: a PWA renderizou 36 contas e as rotas de ação chegaram às validações de negócio sem alterar dados.
 
