@@ -623,3 +623,25 @@ O histórico da simulação acima foi preservado como evidência. As instruçõe
 - A releitura de `despesas_config!A1:H19` confirmou os nomes vigentes.
 - `GET /api/accounts` devolveu os mesmos nomes sem alteração de workflow ou código; a API relaciona as ocorrências por `despesa_id`.
 - A resposta permaneceu com 18 contas de agosto e resumo `0 vencidas / 0 hoje / 18 próximas`.
+
+## Remoção do preview do link no WhatsApp — 2026-07-23
+
+| Item | Resultado |
+|---|---|
+| Workflow de produção | `FINANCAS-MPD - Lembretes consolidados diários` (`yQgTRvFBZvvsYKXs`) |
+| Configuração | Nó Evolution publicado com `linkPreview = false`; a URL do PWA permanece no texto e clicável |
+| Versão ativa | `ed240547-e52b-4cea-9e89-2df42b4ef6c2` |
+| Reexecução do workflow real | Execução `6992`; nenhum lembrete elegível não deduplicado, portanto nenhum envio ou registro novo |
+| Fluxo temporário | `FINANCAS-MPD - TEMP - Teste sem preview` (`eoEll3PMVwsGRMfa`), manual e sem planilha |
+| Envio controlado | Execução `6993`: `success`, aceita pela Evolution no grupo autorizado |
+| Encerramento | Workflow temporário arquivado após o envio |
+| Validação visual | Divergente entre clientes: iPhone exibiu cartão com imagem e notebook exibiu cartão textual compacto |
+
+Nenhuma conta, cotação ou linha de `notificacoes` foi alterada por esse teste.
+
+### Ajuste após validação visual
+
+- Removidas de `app/index.html` as referências `og:image`, dimensões, texto alternativo e `twitter:image`.
+- O cartão do Twitter passou de `summary_large_image` para `summary`.
+- Título, descrição, favicon e URL pública foram preservados.
+- A imagem física permaneceu no projeto, mas deixou de ser anunciada como imagem do link.
