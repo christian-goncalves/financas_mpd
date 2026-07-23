@@ -524,8 +524,13 @@ Contas registradas:
 
 | Campo | Resultado |
 |---|---|
-| Status | Não executado nesta rodada |
-| Motivo | A primeira rodada já enviou mensagem real ao WhatsApp. Para evitar ruído operacional, a variação de `data_base_simulada` deve ser feita como próximo checkpoint, alterando temporariamente o Code node do workflow SIM e restaurando para `2026-07-22` ao final. |
+| Status | Aprovado |
+| Data base temporária | `2026-07-23` |
+| Execução n8n | `6967` |
+| Resultado | `success`, 7 contas consolidadas e 7 registros `enviada` em `notificacoes_teste` |
+| Formato exercitado | Nome em negrito, situação em itálico e ARS inteiro em monoespaçado |
+| Preview | URL pública do PWA incluída para geração do cartão Open Graph no WhatsApp |
+| Restauração | Workflow SIM restaurado para `data_base_simulada = 2026-07-22`, versão `98b1acab-374c-4ea2-af02-ccccaf7aceb8`, permanecendo manual e inativo |
 
 ### SIM-08 — Limpeza final
 
@@ -541,12 +546,12 @@ Contas registradas:
 
 ### Veredito
 
-- **Resultado da rodada:** aprovado para SIM-01, SIM-02, SIM-04, SIM-05, SIM-06 e SIM-08; SIM-03 e SIM-07 não executados.
+- **Resultado da rodada:** aprovado para SIM-01, SIM-02, SIM-04, SIM-05, SIM-06, SIM-07 e SIM-08; SIM-03 não executado.
 - **Envio real de simulação:** execução `6952` enviada tecnicamente com sucesso pelo Evolution.
 - **Deduplicação:** aprovada na execução `6953`.
 - **Integridade:** `contas_mensais` e `notificacoes` reais preservadas.
 - **Confirmação humana:** mensagem `[SIMULAÇÃO] Finanças MPD` recebida e conferida visualmente no grupo.
-- **Próximo checkpoint recomendado:** executar SIM-07 com outra `data_base_simulada` somente quando for útil gerar uma segunda mensagem real de aprendizado.
+- **SIM-07:** executado em `2026-07-23` para validar o formato compacto e o preview do PWA.
 
 ### Padronização da mensagem — 2026-07-23
 
