@@ -476,13 +476,13 @@ Executar uma simulação operacional segura do fluxo de lembretes WhatsApp usand
 
 | Campo | Resultado |
 |---|---|
-| Status | Aprovado tecnicamente |
+| Status | Aprovado |
 | Execução n8n | `6952` |
 | Status da execução | `success` |
 | Resultado do Code node | `should_send=true`, `count=8`, `skipped_duplicates=0`, `skipped_inactive_expenses=22` |
 | Resultado Evolution | `success=true`, envio para `120363429681130867@g.us` |
 | Conteúdo funcional | Mensagem consolidada com `[SIMULAÇÃO]`, data base `22/07/2026` e 8 contas elegíveis. |
-| Confirmação visual no WhatsApp | Pendente de conferência humana no telefone. |
+| Confirmação visual no WhatsApp | Confirmada pelo usuário por captura do WhatsApp em 2026-07-23. |
 
 ### SIM-05 — Registro em `notificacoes_teste`
 
@@ -545,5 +545,20 @@ Contas registradas:
 - **Envio real de simulação:** execução `6952` enviada tecnicamente com sucesso pelo Evolution.
 - **Deduplicação:** aprovada na execução `6953`.
 - **Integridade:** `contas_mensais` e `notificacoes` reais preservadas.
-- **Pendência humana:** confirmar visualmente no WhatsApp se a mensagem `[SIMULAÇÃO] Finanças MPD` chegou ao grupo.
+- **Confirmação humana:** mensagem `[SIMULAÇÃO] Finanças MPD` recebida e conferida visualmente no grupo.
 - **Próximo checkpoint recomendado:** executar SIM-07 com outra `data_base_simulada` somente quando for útil gerar uma segunda mensagem real de aprendizado.
+
+### Padronização da mensagem — 2026-07-23
+
+| Campo | Resultado |
+|---|---|
+| Corpo por conta | ``*nome* - _situação_ - `ARS valor` `` |
+| Nome | Negrito |
+| Situação | Itálico |
+| Valor | ARS sem centavos, em monoespaçado |
+| BRL | Omitido da mensagem |
+| Link | `https://financas-mpd.vercel.app/` |
+| Preview | Metadados Open Graph e imagem social `1200x630` adicionados ao PWA |
+| Workflow SIM | Atualizado, manual e inativo |
+| Workflow real | Atualizado e publicado na versão `376608de-40b3-4e7a-a547-b022776ba334` |
+| Validação sem reenvio | Execução SIM `6966`: `success`, `NO_REMINDERS`, 8 duplicidades bloqueadas e nenhum envio |

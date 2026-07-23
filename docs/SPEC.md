@@ -64,6 +64,8 @@ Os filtros Todas, Vencidas, Hoje e Próximas alteram somente a renderização lo
 - Conta paga não recebe novos lembretes.
 - Conta ignorada não recebe novos lembretes naquela competência.
 - Conta adiada volta a aparecer na nova data.
+- Cada lembrete do WhatsApp usa uma linha compacta no formato ``*nome* - _situação_ - `ARS valor` ``; o nome aparece em negrito, a situação em itálico, o valor ARS sem centavos em monoespaçado e o BRL não aparece.
+- A mensagem consolidada inclui a data base e a URL pública do PWA. O preview do link usa os metadados Open Graph da aplicação.
 - Conta automática aparece identificada como “Débito aut.” na linha de categoria e tipo, sem badge interno.
 - No modo `demo`, as alterações são locais e desaparecem após recarregar. No modo vigente `api`, pagar, adiar e ignorar persistem na planilha e devem continuar refletidos após recarregar a página.
 

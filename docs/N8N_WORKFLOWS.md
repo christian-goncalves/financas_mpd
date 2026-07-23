@@ -120,6 +120,15 @@ Função:
 - Registrar uma linha por conta e etapa em `notificacoes`, com `status_envio = enviada` ou `erro`.
 - Evitar o reenvio quando já existir `status_envio = enviada` para a mesma conta, etapa e canal.
 
+Formato da mensagem:
+
+- cabeçalho com `Finanças MPD` e data base em `DD/MM/AAAA`;
+- uma linha por conta: ``*nome* - _situação_ - `ARS valor` ``;
+- nome em negrito, situação em itálico e valor ARS inteiro em monoespaçado;
+- valor convertido em BRL omitido para reduzir o volume;
+- URL `https://financas-mpd.vercel.app/` ao final, habilitando acesso ao PWA e o preview Open Graph;
+- o workflow de simulação mantém o prefixo `[SIMULAÇÃO]` e o aviso de que não representa cobrança real.
+
 O fluxo possui dez nós: Schedule, leitura de `despesas_config`, leitura de `contas_mensais`, leitura de `notificacoes`, preparação do consolidado, verificação de lembretes, envio pela Evolution API, preparação dos registros de sucesso e erro e append em `notificacoes`. A estrutura, as credenciais, a deduplicação e o tratamento de falha foram validados. A versão testada está publicada e ativa com execução diária às `08:00` em `America/Sao_Paulo`.
 
 Validação das etapas em 2026-07-21:

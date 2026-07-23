@@ -1,4 +1,4 @@
-const CACHE_NAME = "contas-mpd-shell-v18";
+const CACHE_NAME = "contas-mpd-shell-v19";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -6,6 +6,10 @@ const APP_SHELL = [
   "./styles.css",
   "./app.js",
   "./manifest.json",
+  "./favicon.svg",
+  "./icon-180.png",
+  "./icon-512.png",
+  "./social-preview.png",
   "./vendor/fontawesome/css/fontawesome.min.css",
   "./vendor/fontawesome/css/solid.min.css",
   "./vendor/fontawesome/webfonts/fa-solid-900.woff2"
