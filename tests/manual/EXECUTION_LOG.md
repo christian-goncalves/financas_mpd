@@ -616,3 +616,10 @@ Após essa validação, Christian confirmou ter marcado manualmente como pagas a
 | Abas finais | `despesas_config`, `contas_mensais`, `notificacoes`, `cotacoes_mensais` e `Dashboard` oculto |
 
 O histórico da simulação acima foi preservado como evidência. As instruções vigentes não dependem mais do workflow ou das abas removidas.
+
+## Revisão dos nomes das despesas — 2026-07-23
+
+- Christian revisou diretamente os nomes em `despesas_config`, mantendo as 18 despesas ativas e seus IDs estáveis.
+- A releitura de `despesas_config!A1:H19` confirmou os nomes vigentes.
+- `GET /api/accounts` devolveu os mesmos nomes sem alteração de workflow ou código; a API relaciona as ocorrências por `despesa_id`.
+- A resposta permaneceu com 18 contas de agosto e resumo `0 vencidas / 0 hoje / 18 próximas`.
