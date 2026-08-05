@@ -436,6 +436,7 @@ button {
 .edit-account-form {
   display: grid;
   width: min(100%, 30rem);
+  min-width: 0;
   gap: 0.9rem;
   margin-inline: auto;
   padding: 1rem;
@@ -479,6 +480,7 @@ button {
 
 .form-field {
   display: grid;
+  min-width: 0;
   gap: 0.35rem;
   color: var(--text);
   font-size: 0.82rem;
@@ -488,6 +490,8 @@ button {
 .form-field input {
   min-height: 2.7rem;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   padding: 0.65rem 0.75rem;
   color: var(--text);
   background: #ffffff;
@@ -495,6 +499,10 @@ button {
   border-radius: 12px;
   font-size: 1rem;
   font-weight: 500;
+}
+
+.form-field input[type="date"] {
+  display: block;
 }
 
 .edit-account-form__actions .button {
