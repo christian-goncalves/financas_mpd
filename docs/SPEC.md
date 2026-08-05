@@ -4,9 +4,9 @@
 
 A tela principal exibe contas pendentes agrupadas por:
 
-1. Vencidas
-2. Vencem hoje
-3. Próximas
+1. Não Pagas
+2. Hoje
+3. A Pagar
 
 Cada conta deve exibir:
 
@@ -21,13 +21,13 @@ Cada conta deve exibir:
 ## Baseline Visual da Fase 2
 
 - O cabeçalho exibe somente “Finanças MPD”.
-- O resumo superior contém Vencidas, Vencem hoje e Próximas.
-- Abaixo do resumo há filtros locais para Todas, Vencidas, Hoje e Próximas.
+- O resumo superior contém Não Pagas, Hoje e A Pagar.
+- Abaixo do resumo há filtros locais para Todas, Não Pagas, Hoje e A Pagar.
 - Cada seção usa um badge único com nome e quantidade.
 - Os cards são compactos e adequados à largura de celular.
 - O título ocupa a primeira linha; categoria e tipo de pagamento aparecem juntos logo abaixo.
-- Checkbox e Adiar ficam no canto superior direito do card.
-- Adiar é representado por ícone local, com rótulo acessível.
+- Checkbox e ações ficam no canto superior direito do card.
+- Ações é representado por ícone de três pontos, com rótulo acessível.
 - Data, ARS e BRL ocupam a faixa inferior do card.
 - Não há badges internos de status nem textos auxiliares repetitivos.
 
@@ -45,11 +45,11 @@ O botão não aparece sem seleção. Ao selecionar uma ou mais contas pelo check
 
 Não há botão dedicado de cancelamento na interface atual. O usuário remove a seleção desmarcando os checkboxes ou trocando o filtro ativo.
 
-### Adiar
+### Editar padrão da conta
 
-Na Fase 2, esta ação foi simulada localmente. No modo vigente `api`, ela persiste `status = adiada`, `adiada_para` e `atualizado_em` em `contas_mensais` após confirmação de sucesso do endpoint.
+O botão de ações abre uma edição compacta com somente nome da dívida, data de vencimento e valor em ARS.
 
-O PWA calcula o adiamento como uma soneca operacional: quando o vencimento original está a mais de dois dias, envia `adiada_para = vencimento - 2 dias`. Quando a conta já venceu, vence hoje, vence amanhã ou vence em até dois dias, usa o fallback `adiada_para = hoje + 7 dias`. O vencimento original não é alterado.
+No modo vigente `api`, a edição chama `POST /api/accounts/update-pattern`. A ocorrência atual recebe `vencimento`, `valor_original`, `valor_convertido` recalculado e `atualizado_em`; o cadastro recorrente em `despesas_config` recebe `nome`, `valor_estimado` e `dia_vencimento`. A data enviada vira padrão futuro pelo dia do mês.
 
 ### Ignorar
 
@@ -57,22 +57,24 @@ Na Fase 2, esta ação removeu a conta apenas do estado local. No modo vigente `
 
 ### Filtrar lista
 
-Os filtros Todas, Vencidas, Hoje e Próximas alteram somente a renderização local. Eles não chamam a API, não alteram a planilha e não mudam os contadores do resumo superior. Ao trocar de filtro, a seleção atual é limpa para evitar pagamento de contas ocultas.
+Os filtros Todas, Não Pagas, Hoje e A Pagar alteram somente a renderização local. Eles não chamam a API, não alteram a planilha e não mudam os contadores do resumo superior. Ao trocar de filtro, a seleção atual é limpa para evitar pagamento de contas ocultas.
 
 ## Regras
 
 - Conta paga não recebe novos lembretes.
 - Conta ignorada não recebe novos lembretes naquela competência.
 - Conta adiada volta a aparecer na nova data.
-- Conta manual recebe lembretes em `D-5`, `D-2`, `D-1`, `D0` e `D+1`.
-- Conta em débito automático recebe lembretes somente em `D-2`, `D-1` e `D0`.
-- O lembrete usa sempre o vencimento original, inclusive para uma conta adiada.
+- A mensagem diária de WhatsApp inclui todas as contas `pendente` ou `adiada`, sem limitar por janela `D-*`.
+- `D-*` é calculado apenas para auditoria em `notificacoes`: hoje é `D0`, futuro é `D-<n>` e vencido é `D+<n>`.
+- A data efetiva do WhatsApp segue a mesma regra visual do PWA: `adiada_para` quando a conta está adiada e possui essa data, caso contrário `vencimento`.
 - No início de `D+1`, às `00:05`, uma conta em débito automático ainda `pendente` ou `adiada` é marcada automaticamente como paga; o vencimento original permanece preservado.
-- A geração diária das `06:00` mantém a janela inclusiva de ocorrências entre hoje e `D+30`.
-- Cada lembrete do WhatsApp usa uma linha compacta no formato ``*nome* - _situação_ - `ARS valor` ``; o nome aparece em negrito, a situação em itálico, o valor ARS sem centavos em monoespaçado e o BRL não aparece.
+- O workflow diário das `08:00` verifica, antes de montar o WhatsApp, se a data local é dois dias antes do último dia do mês; quando a guarda é atendida, cria a competência seguinte e relê `contas_mensais` antes de selecionar os lembretes.
+- O layout da mensagem consolidada, seus atributos dinâmicos, a ordem dos blocos e a formatação de cada conta seguem a referência visual canônica em [MODEL_MESSAGE_WHATSAPP.md](MODEL_MESSAGE_WHATSAPP.md).
+- `grupo_apresentacao` e `grupo_apresentacao_label` são atributos de apresentação, derivados de `grupo_visual`, da data efetiva ou da etapa, e não substituem a lógica operacional nem o registro histórico por `D-*`.
 - A mensagem consolidada inclui a data base e a URL pública clicável do PWA. O envio solicita `linkPreview = false` e o HTML não publica `og:image`; clientes do WhatsApp ainda podem exibir um cartão textual compacto.
 - Conta automática aparece identificada como “Débito aut.” na linha de categoria e tipo, sem badge interno.
-- No modo `demo`, as alterações são locais e desaparecem após recarregar. No modo vigente `api`, pagar, adiar e ignorar persistem na planilha e devem continuar refletidos após recarregar a página.
+- Edição de padrão não altera categoria, tipo de pagamento, moedas, status, pagamento, adiamento, origem, notificações ou cotações.
+- O PWA opera exclusivamente via API. Pagamentos e edições de padrão persistem na planilha e devem continuar refletidos após recarregar a página.
 
 ## Recebimento do acesso
 
@@ -82,7 +84,7 @@ Os filtros Todas, Vencidas, Hoje e Próximas alteram somente a renderização lo
 
 ## Integração do frontend
 
-- O modo vigente é `api` e usa a base pública `https://n8n.autamacao.shop/api`.
+- O PWA usa exclusivamente a base pública `https://n8n.autamacao.shop/api`. A origem dos dados de teste ou produção é controlada na configuração dos workflows n8n.
 - No modo público temporário, o frontend não envia o header `Authorization`.
 - As respostas não são armazenadas em cache e as requisições não enviam cookies ou `Referer`.
 - Campos textuais da conta são tratados como texto, nunca como HTML executável.

@@ -14,26 +14,23 @@ O deploy de produção foi realizado na Fase 3, depois da validação da interfa
 ## Fase 2 — Interface (concluída)
 
 - [x] Criar a interface mobile-first aprovada.
-- [x] Renderizar contas fictícias agrupadas em Vencidas, Vencem hoje e Próximas.
+- [x] Renderizar contas da API agrupadas em Não Pagas, Hoje e A Pagar.
 - [x] Criar seleção múltipla e controle de “Marcar como pagas”.
 - [x] Criar “Cancelar seleção”.
-- [x] Criar ações locais de Adiar e Ignorar.
+- [x] Criar ações de Adiar e Ignorar integradas à API.
 - [x] Exibir ARS como valor principal e BRL como valor secundário.
-- [x] Separar dados demo, camada de API, renderização e ações do usuário.
-- [x] Preparar os modos `demo` e `api`, mantendo `demo` como padrão.
+- [x] Separar a camada de API, renderização e ações do usuário.
+- [x] Configurar o PWA para operar exclusivamente via API.
 
 ## Fase 3 — Integração (concluída)
 
 ### Preparação concluída
 
 - [x] Definir o contrato dos quatro endpoints entre PWA e n8n.
-- [x] Preparar a camada de API do frontend sem realizar chamadas externas no modo demo.
+- [x] Preparar a camada de API do frontend para usar os endpoints publicados.
 - [x] Especificar a montagem operacional dos quatro webhooks.
-- [x] Criar e testar o mock de `GET /api/accounts` em modo de teste.
-- [x] Criar e testar o mock de `POST /api/accounts/pay` em modo de teste.
-- [x] Criar e testar o mock de `POST /api/accounts/postpone` em modo de teste.
-- [x] Criar e testar o mock de `POST /api/accounts/ignore` em modo de teste.
-- [x] Criar a estrutura inicial da planilha Google Sheets com dados fictícios.
+- [x] Criar e testar os endpoints da API em modo de teste controlado.
+- [x] Criar a estrutura inicial da planilha Google Sheets com dados controlados.
 
 Os quatro workflows usam Google Sheets, foram validados em modo de teste e posteriormente publicados nas rotas nativas `/webhook/api/*`. As evidências estão em [N8N_EXECUTION_LOG.md](../docs/N8N_EXECUTION_LOG.md).
 
@@ -54,17 +51,18 @@ Executar um endpoint por vez e registrar os testes antes de avançar.
 - [x] Obter autorização explícita para alterar o workflow de `POST /api/accounts/ignore`.
 - [x] Substituir o mock de ignorar pela leitura e atualização persistente.
 - [x] Testar estados incompatíveis e repetição idempotente.
-- [x] Validar os quatro endpoints contra a mesma base fictícia e restaurar a massa de teste quando necessário.
+- [x] Validar os quatro endpoints contra uma base de teste controlada e restaurar a massa quando necessário.
 
 ### Gerar contas mensais
 
 - [x] Definir a regra de cotação ARS/BRL do MVP.
-- [x] Criar e validar a aba `cotacoes_mensais` com dados fictícios.
+- [x] Criar e validar a aba `cotacoes_mensais` com dados controlados.
 - [x] Criar o workflow diário de geração de contas mensais.
-- [x] Refatorar e publicar a geração contínua inclusiva entre hoje e `D+30`.
+- [x] Refatorar e publicar a geração antecipada da competência seguinte.
+- [x] Incorporar a geração mensal ao workflow diário de WhatsApp das `08:00` e arquivar o workflow separado de geração.
 - [x] Ler somente despesas ativas.
 - [x] Evitar duplicidade por `despesa_id + competencia`.
-- [x] Testar geração e repetição idempotente com dados fictícios.
+- [x] Testar geração e repetição idempotente com dados controlados.
 - [x] Criar, testar e publicar a liquidação diária de débitos automáticos em `D+1`.
 - [x] Diferenciar as etapas de lembrete por tipo de pagamento usando o vencimento original.
 
@@ -77,14 +75,14 @@ Executar um endpoint por vez e registrar os testes antes de avançar.
 - [x] Configurar o proxy para preservar `/api/*` e tratar `OPTIONS` sem criar endpoint de negócio adicional.
 - [x] Configurar CORS para a origem final do PWA.
 - [x] Implementar no PWA o recebimento seguro do token por magic link, removendo-o da URL visível.
-- [x] Configurar o PWA para usar a URL pública e o modo `api`, sem segredo interno no frontend.
+- [x] Configurar o PWA para usar exclusivamente a URL pública, sem segredo interno no frontend.
 - [x] Validar listagem, pagamento, adiamento e ignorar pelo PWA contra os endpoints publicados.
 
 ### Critério de saída da Fase 3
 
 - Os quatro endpoints usam Google Sheets e respeitam o contrato.
 - Persistência, atomicidade e idempotência possuem evidência de teste.
-- O workflow de geração mensal está validado.
+- A geração mensal está validada como etapa do workflow diário de lembretes.
 - PWA, proxy, CORS e autenticação funcionam no ambiente publicado.
 - Evolution API não foi conectada nesta fase.
 
@@ -109,7 +107,7 @@ Plano e registro operacional: [testes manuais](../tests/MANUAL_TESTS.md) e [evid
   - [x] Gerar agosto de 2026 e repetir a execução sem criar duplicidades.
   - [x] Executar o lembrete real do dia, registrar os três resultados e repetir sem reenvio.
   - [x] Regularizar os seis débitos automáticos vencidos e repetir a liquidação com zero atualizações.
-  - [x] Validar a janela D+30, ausência de cotação, mês curto e repetição sem duplicidade.
+  - [x] Validar ausência de cotação, mês curto e repetição sem duplicidade.
   - [x] Encerrar o ambiente temporário de simulação.
   - [x] Validar a PWA móvel sem sessão e a rejeição pública sem Bearer token.
   - [x] Abrir a PWA por magic link válido e testar listagem, pagamento, adiamento e ignorar com restauração do estado.

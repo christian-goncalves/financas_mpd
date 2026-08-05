@@ -46,15 +46,15 @@
         <div class="summary-grid">
           <div class="summary-card summary-card--overdue">
             <span class="summary-card__value" id="summary-overdue">0</span>
-            <span class="summary-card__label">Vencidas</span>
+            <span class="summary-card__label">Não Pagas</span>
           </div>
           <div class="summary-card summary-card--today">
             <span class="summary-card__value" id="summary-today">0</span>
-            <span class="summary-card__label">Vencem hoje</span>
+            <span class="summary-card__label">Hoje</span>
           </div>
           <div class="summary-card summary-card--upcoming">
             <span class="summary-card__value" id="summary-upcoming">0</span>
-            <span class="summary-card__label">Próximas</span>
+            <span class="summary-card__label">A Pagar</span>
           </div>
         </div>
       </section>
@@ -64,13 +64,13 @@
           Todas
         </button>
         <button class="filter-chip filter-chip--overdue" type="button" data-filter="overdue" aria-pressed="false">
-          Vencidas
+          Não Pagas
         </button>
         <button class="filter-chip filter-chip--today" type="button" data-filter="today" aria-pressed="false">
           Hoje
         </button>
         <button class="filter-chip filter-chip--upcoming" type="button" data-filter="upcoming" aria-pressed="false">
-          Próximas
+          A Pagar
         </button>
       </section>
 
@@ -85,6 +85,38 @@
       <section class="accounts-list" id="accounts-list" aria-label="Lista de contas pendentes" aria-live="polite"
         aria-busy="true"></section>
     </main>
+
+    <div class="modal-backdrop" id="edit-account-modal" role="dialog" aria-modal="true"
+      aria-labelledby="edit-account-title" hidden>
+      <form class="edit-account-form" id="edit-account-form">
+        <div class="edit-account-form__header">
+          <h2 id="edit-account-title">Editar conta</h2>
+          <button class="modal-close-button" type="button" data-action="close-edit" aria-label="Fechar edição">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <label class="form-field" for="edit-account-name">
+          <span>Nome da dívida</span>
+          <input id="edit-account-name" name="name" type="text" autocomplete="off" required>
+        </label>
+
+        <label class="form-field" for="edit-account-due-date">
+          <span>Data de vencimento</span>
+          <input id="edit-account-due-date" name="dueDate" type="date" required>
+        </label>
+
+        <label class="form-field" for="edit-account-value">
+          <span>Valor</span>
+          <input id="edit-account-value" name="arsValue" type="number" min="0" step="1" inputmode="numeric" required>
+        </label>
+
+        <div class="edit-account-form__actions">
+          <button class="button button--secondary" type="button" data-action="close-edit">Cancelar</button>
+          <button class="button button--primary" id="edit-account-submit" type="submit">Salvar</button>
+        </div>
+      </form>
+    </div>
 
     <footer class="app-status" aria-label="Status da aplicação">
       <span class="app-status__indicator" aria-hidden="true"></span>

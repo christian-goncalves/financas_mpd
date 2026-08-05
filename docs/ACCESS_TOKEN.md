@@ -20,7 +20,7 @@ Este documento define o provisionamento, a rotação e a revogação do Bearer t
 - O token final foi validado nas rotas nativas publicadas: Bearer válido foi aceito e token ausente ou inválido recebeu `401 UNAUTHORIZED`.
 - As rotas públicas `/api/*` aceitam CORS somente para `https://financas-mpd.vercel.app`; a configuração foi validada sem expor o token.
 - O PWA recebe `?token=...`, valida o formato, remove o parâmetro imediatamente da URL visível e mantém o valor somente em `sessionStorage` ou, se esse recurso estiver indisponível, na memória da página.
-- O bootstrap de autenticação foi validado com token exclusivamente fictício; o valor final não foi usado nem exposto nos testes de frontend.
+- O bootstrap de autenticação foi validado com token de teste; o valor final não foi usado nem exposto nos testes de frontend.
 - O frontend está configurado em modo `api`; o header `Authorization` é montado em tempo de execução a partir da sessão e nunca é persistido nos assets.
 
 ## Regras do MVP
@@ -37,18 +37,18 @@ Este documento define o provisionamento, a rotação e a revogação do Bearer t
 
 - Data: 2026-07-21 13:12:21 (`America/Sao_Paulo`).
 - Formato aceito: 64 caracteres hexadecimais minúsculos.
-- URL com token fictício: parâmetro removido e demais query params e fragmento preservados.
+- URL com token de teste: parâmetro removido e demais query params e fragmento preservados.
 - Recarga na mesma aba: token restaurado a partir de `sessionStorage`.
 - Link inválido: valor descartado, sessão limpa e mensagem pública sem dados sensíveis.
-- Navegador em 430 px: seis cards demo renderizados, zero erros de console e zero requisições externas.
-- `APP_MODE` permaneceu em `demo`; nenhum endpoint real foi chamado nesta tarefa.
+- Navegador em 430 px: a interface foi validada com resposta interceptada, zero erros de console e zero requisições externas.
+- Nenhum endpoint real ou dado persistente foi acessado nessa validação isolada.
 
 ## Evidência da configuração do modo API
 
 - Data: 2026-07-21 13:35:39 (`America/Sao_Paulo`).
 - Base pública configurada: `https://n8n.autamacao.shop/api`.
 - Sem token na sessão: nenhuma requisição foi iniciada e a interface solicitou abertura pelo link de acesso.
-- Com token fictício: o navegador montou `Authorization: Bearer` somente em tempo de execução e chamou `GET /api/accounts`.
+- Com token de teste: o navegador montou `Authorization: Bearer` somente em tempo de execução e chamou `GET /api/accounts`.
 - A requisição simulada não enviou cookies nem `Referer` e usou `cache: no-store`.
 - A renderização escapou HTML recebido na resposta, protegendo o token em memória contra injeção por campos textuais.
 - O teste usou somente resposta interceptada; nenhum endpoint real ou dado persistente foi acessado nesta tarefa.

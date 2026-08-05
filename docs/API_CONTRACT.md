@@ -56,7 +56,7 @@ O token de acesso:
 - deve ser removido da URL visível após a leitura do magic link;
 - nunca deve ser devolvido nas respostas ou gravado em logs de aplicação.
 
-O PWA consome `?token=...` antes de carregar os demais assets, remove o parâmetro com `history.replaceState` e mantém o valor somente em `sessionStorage`. Links malformados são descartados e removem qualquer token anterior da mesma sessão. O modo `api` lê esse valor em tempo de execução e nunca inclui um token nos assets estáticos.
+O PWA consome `?token=...` antes de carregar os demais assets, remove o parâmetro com `history.replaceState` e mantém o valor somente em `sessionStorage`. Links malformados são descartados e removem qualquer token anterior da mesma sessão. A integração via API lê esse valor em tempo de execução e nunca inclui um token nos assets estáticos.
 
 O formato, a fonte segura e os procedimentos de rotação e revogação estão definidos em [ACCESS_TOKEN.md](ACCESS_TOKEN.md). O valor nunca é registrado na documentação.
 
@@ -123,6 +123,8 @@ O formato, a fonte segura e os procedimentos de rotação e revogação estão d
   "categoria": "pessoal",
   "tipo_pagamento": "manual",
   "grupo_visual": "vencida",
+  "grupo_apresentacao": "nao_pagas",
+  "grupo_apresentacao_label": "Não Pagas",
   "vencimento": "2026-08-10",
   "adiada_para": null,
   "moeda_original": "ARS",
@@ -142,6 +144,8 @@ O formato, a fonte segura e os procedimentos de rotação e revogação estão d
 | `categoria` | string | sim | `pessoal` ou `profissional` |
 | `tipo_pagamento` | string | sim | `manual` ou `debito_automatico` |
 | `grupo_visual` | string | sim | `vencida`, `hoje` ou `proxima` |
+| `grupo_apresentacao` | string | não | Atributo aditivo de apresentação: `nao_pagas`, `hoje` ou `a_pagar` |
+| `grupo_apresentacao_label` | string | não | Label de apresentação: `Não Pagas`, `Hoje` ou `A Pagar` |
 | `vencimento` | string | sim | Data civil no formato `YYYY-MM-DD` |
 | `adiada_para` | string ou null | não | Nova data operacional `YYYY-MM-DD` quando o status for `adiada` |
 | `moeda_original` | string | sim | Código ISO 4217; no MVP, `ARS` |
@@ -152,9 +156,10 @@ O formato, a fonte segura e os procedimentos de rotação e revogação estão d
 
 ### Compatibilidade com a UI atual
 
-- `grupo_visual: vencida` alimenta a seção **Vencidas**.
-- `grupo_visual: hoje` alimenta a seção **Vencem hoje**.
-- `grupo_visual: proxima` alimenta a seção **Próximas**.
+- `grupo_visual: vencida` alimenta a seção operacional `overdue` e a apresentação **Não Pagas**.
+- `grupo_visual: hoje` alimenta a seção operacional `today` e a apresentação **Hoje**.
+- `grupo_visual: proxima` alimenta a seção operacional `upcoming` e a apresentação **A Pagar**.
+- Quando `grupo_apresentacao` e `grupo_apresentacao_label` estiverem ausentes, o PWA deriva os labels de apresentação a partir de `grupo_visual`.
 - `categoria` é apresentada como Pessoal ou Profissional.
 - `tipo_pagamento` é apresentado como Manual ou Débito aut.
 - A data efetiva exibida é `adiada_para` quando preenchida; caso contrário, `vencimento`.
@@ -162,7 +167,7 @@ O formato, a fonte segura e os procedimentos de rotação e revogação estão d
 - `valor_convertido` em BRL é o valor secundário menor.
 - Contas com status `paga`, `ignorada` ou `cancelada` não devem ser devolvidas por este endpoint.
 
-O n8n é responsável por calcular `grupo_visual` usando `adiada_para` quando preenchida e, nos demais casos, `vencimento`, sempre de forma consistente com a data local definida para o projeto. O PWA não deve inferir estados diferentes dos informados pela API.
+O n8n é responsável por calcular `grupo_visual` usando `adiada_para` quando preenchida e, nos demais casos, `vencimento`, sempre de forma consistente com a data local definida para o projeto. O PWA não deve inferir estados operacionais diferentes dos informados pela API; `grupo_apresentacao` é apenas uma camada de nomenclatura visual.
 
 ## 1. Listar contas pendentes
 
@@ -200,6 +205,8 @@ Accept: application/json
         "categoria": "pessoal",
         "tipo_pagamento": "manual",
         "grupo_visual": "vencida",
+        "grupo_apresentacao": "nao_pagas",
+        "grupo_apresentacao_label": "Não Pagas",
         "vencimento": "2026-08-10",
         "adiada_para": null,
         "moeda_original": "ARS",
@@ -494,9 +501,86 @@ Não é necessário enviar `competencia`: o `conta_id` identifica a ocorrência 
 - O n8n resolve e valida a competência usando o registro associado ao `conta_id`.
 - Não permitir alteração fora do escopo definido pelo token.
 
+## 5. Atualizar padrão da conta
+
+### Método e URL
+
+```http
+POST /api/accounts/update-pattern
+```
+
+### Objetivo
+
+Atualizar os ajustes comuns de uma conta exibida no PWA e persisti-los como novo padrão recorrente da despesa relacionada.
+
+### Request
+
+```json
+{
+  "conta_id": "conta_2026_08_001",
+  "nome": "Novo nome",
+  "vencimento": "2026-08-15",
+  "valor_original": 60000
+}
+```
+
+### Response de sucesso
+
+```json
+{
+  "ok": true,
+  "data": {
+    "conta_id": "conta_2026_08_001",
+    "despesa_id": "desp_001",
+    "nome": "Novo nome",
+    "vencimento": "2026-08-15",
+    "valor_original": 60000,
+    "dia_vencimento": 15,
+    "updated_at": "2026-08-04T10:30:00-03:00"
+  },
+  "request_id": "req_01JXYZ127"
+}
+```
+
+### Validações mínimas
+
+- Validar o token antes de alterar dados.
+- Exigir `conta_id`, `nome`, `vencimento` e `valor_original`.
+- Exigir `nome` não vazio, `vencimento` válido em `YYYY-MM-DD` e `valor_original >= 0`.
+- Confirmar que a conta existe, pertence ao escopo do token e referencia uma despesa existente em `despesas_config`.
+- Permitir edição somente para ocorrência em `status = pendente` ou `adiada`.
+- Retornar `404 ACCOUNT_NOT_FOUND` para `conta_id` inexistente.
+- Retornar `409 INVALID_STATE` para `paga`, `ignorada`, `cancelada` ou estado incompatível, sem escrita.
+
+### Persistência
+
+- Em `contas_mensais`, atualizar somente `vencimento`, `valor_original`, `valor_convertido` e `atualizado_em`.
+- Recalcular `valor_convertido = round(valor_original / cotacao_usada, 2)`.
+- Em `despesas_config`, atualizar somente `nome`, `valor_estimado` e `dia_vencimento`.
+- `dia_vencimento` é derivado do dia da data enviada em `vencimento`.
+- Não alterar categoria, tipo de pagamento, moedas, status, pagamento, adiamento, origem, notificações ou cotações.
+
+### Segurança
+
+- Não aceitar campos extras para alterar `categoria`, `tipo_pagamento`, `moeda_original`, `ativa`, status ou histórico.
+- A atualização deve ser tratada como uma única operação lógica; se uma das escritas falhar, o resultado deve ser erro e a execução deve ser reconciliada antes de aprovação.
+
+## Integração WhatsApp e auditoria
+
+O envio diário de WhatsApp não é um endpoint público do PWA, mas deve seguir o mesmo contrato visual de agrupamento retornado por `GET /api/accounts`.
+
+- A fonte é a aba configurada no workflow n8n para `contas_mensais`.
+- Entram na mensagem todas as contas com `status = pendente` ou `adiada`.
+- Não entram contas `paga`, `ignorada` ou `cancelada`.
+- A data efetiva segue a mesma regra da listagem: `adiada_para` para conta adiada quando preenchido; caso contrário, `vencimento`.
+- Os grupos de apresentação são `nao_pagas`, `hoje` e `a_pagar`.
+- `D-*` não decide elegibilidade de envio; ele é gravado somente em `notificacoes.etapa` como auditoria.
+- `notificacoes` não bloqueia reenvio diário de uma conta que continua pendente ou adiada.
+- Cada tentativa consolidada autorizada grava uma linha de auditoria por conta enviada.
+
 ## Regras para a implementação futura no PWA
 
-- Manter a UI atual enquanto os dados fictícios forem substituídos pela resposta de `GET /api/accounts`.
+- A UI deve renderizar exclusivamente a resposta de `GET /api/accounts`.
 - Implementar um único adaptador entre os nomes do contrato e o estado visual da aplicação.
 - Não espalhar URLs ou lógica de autenticação pelos componentes de renderização.
 - Desabilitar a ação enquanto a requisição correspondente estiver em andamento.

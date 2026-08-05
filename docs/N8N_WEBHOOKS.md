@@ -1,6 +1,6 @@
 # Webhooks n8n — Especificação Operacional
 
-Este documento define como os quatro endpoints de [API_CONTRACT.md](API_CONTRACT.md) devem ser implementados no n8n. Evidências e IDs de execuções ficam em [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md).
+Este documento define como os endpoints de [API_CONTRACT.md](API_CONTRACT.md) devem ser implementados no n8n. Evidências e IDs de execuções ficam em [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md).
 
 ## Estado atual
 
@@ -10,10 +10,11 @@ Este documento define como os quatro endpoints de [API_CONTRACT.md](API_CONTRACT
 | `FINANCAS-MPD - API - Pagar contas` | `POST api/accounts/pay` | Publicado e validado em `/webhook/api/accounts/pay` |
 | `FINANCAS-MPD - API - Adiar conta` | `POST api/accounts/postpone` | Publicado e validado em `/webhook/api/accounts/postpone` |
 | `FINANCAS-MPD - API - Ignorar conta` | `POST api/accounts/ignore` | Publicado e validado em `/webhook/api/accounts/ignore` |
+| `FINANCAS-MPD - API - Atualizar padrão da conta` | `POST api/accounts/update-pattern` | Publicado em rota nativa; proxy `/api/accounts/update-pattern` ainda pendente |
 
-Os quatro endpoints foram publicados em 2026-07-21. As rotas `/webhook/api/*` são internas ao n8n, e o proxy Traefik expõe os quatro paths públicos `/api/*`.
+Os quatro endpoints originais foram publicados em 2026-07-21. As rotas `/webhook/api/*` são internas ao n8n, e o proxy Traefik expõe os quatro paths públicos originais `/api/*`. O endpoint de edição de padrão foi publicado depois e aguarda inclusão no proxy.
 
-Em 2026-07-21, os quatro endpoints públicos foram exercitados pelo PWA de produção com dados fictícios. Todos retornaram `200`, persistiram a ação esperada e a massa foi restaurada ao final. Em 2026-07-22, os quatro workflows foram republicados em modo público temporário, sem exigir Bearer token.
+Em 2026-07-21, os quatro endpoints públicos foram exercitados pelo PWA de produção com dados de teste controlados. Todos retornaram `200`, persistiram a ação esperada e a massa foi restaurada ao final. Em 2026-07-22, os quatro workflows foram republicados em modo público temporário, sem exigir Bearer token.
 
 ## Configuração compartilhada
 
@@ -91,15 +92,16 @@ Cada workflow deve manter responsabilidades identificáveis para:
 4. Manter somente despesas com `ativa = sim`.
 5. Usar `adiada_para` como data efetiva quando preenchida; caso contrário, usar `vencimento`.
 6. Calcular `grupo_visual` como `vencida`, `hoje` ou `proxima` no fuso oficial.
-7. Montar os campos públicos definidos no contrato.
-8. Calcular `summary` a partir da lista final.
+7. Derivar `grupo_apresentacao` e `grupo_apresentacao_label` a partir de `grupo_visual`, sem alterar a classificação operacional.
+8. Montar os campos públicos definidos no contrato.
+9. Calcular `summary` a partir da lista final.
 
 Uma lista vazia retorna `200`, `accounts: []` e contadores zerados.
 
 ### Testes mínimos
 
 - Token válido, ausente e inválido.
-- Três grupos visuais e resumo coerente.
+- Três grupos visuais, labels de apresentação e resumo coerente.
 - Despesa inativa não aparece.
 - Status `paga`, `ignorada` e `cancelada` não aparecem.
 - Registro adiado usa `adiada_para`.
@@ -176,6 +178,31 @@ Uma lista vazia retorna `200`, `accounts: []` e contadores zerados.
 - Repetição sem mudança de `ignorada_em`.
 - Token válido, ausente e inválido.
 
+## POST `/api/accounts/update-pattern`
+
+### Leitura, validação e escrita
+
+1. Exigir `conta_id`, `nome`, `vencimento` e `valor_original`.
+2. Validar `nome` não vazio, data civil `YYYY-MM-DD` e valor numérico maior ou igual a zero.
+3. Ler `contas_mensais` e localizar `conta_id`.
+4. Retornar `404 ACCOUNT_NOT_FOUND` se a conta não existir.
+5. Permitir edição somente em `pendente` ou `adiada`.
+6. Retornar `409 INVALID_STATE` para `paga`, `ignorada`, `cancelada` ou outro estado incompatível.
+7. Ler `despesas_config` e localizar o `despesa_id` da ocorrência.
+8. Recalcular `valor_convertido = round(valor_original / cotacao_usada, 2)`.
+9. Atualizar em `contas_mensais`: `vencimento`, `valor_original`, `valor_convertido` e `atualizado_em`.
+10. Atualizar em `despesas_config`: `nome`, `valor_estimado` e `dia_vencimento`.
+
+### Testes mínimos
+
+- Conta elegível.
+- Nome vazio, data inválida e valor negativo.
+- ID inexistente.
+- Estado incompatível sem alteração.
+- Escrita limitada aos campos permitidos nas duas abas.
+- Repetição com os mesmos dados sem alteração fora do escopo.
+- Geração futura usa o novo padrão salvo em `despesas_config`.
+
 ## URLs, publicação e proxy
 
 Durante a integração com Google Sheets, usar somente a URL nativa de teste iniciada pelo editor:
@@ -199,7 +226,7 @@ Publicação, proxy e CORS final estão concluídos. O recebimento seguro do tok
 - Os quatro endpoints leem ou alteram a planilha conforme o contrato.
 - Cada endpoint possui testes de sucesso, autenticação, validação, estado e idempotência.
 - Pagamento múltiplo não produz sucesso parcial.
-- Somente dados fictícios foram usados.
+- Somente dados de teste controlados foram usados.
 - Nenhum segredo aparece em resposta, export ou documentação.
 - Evolution API permaneceu fora da etapa.
 - As evidências foram registradas em [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md).

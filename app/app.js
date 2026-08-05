@@ -1,9 +1,9 @@
 // Configuração
-const APP_MODE = "api"; // "demo" ou "api"
 const PUBLIC_MVP_MODE = true;
 
 const APP_CONFIG = Object.freeze({
   API_BASE_URL: "https://n8n.autamacao.shop/api",
+  API_WEBHOOK_BASE_URL: "https://n8n.autamacao.shop/webhook/api",
   get AUTH_TOKEN() {
     return window.FINANCAS_AUTH_SESSION?.getToken() || "";
   }
@@ -12,7 +12,7 @@ const APP_CONFIG = Object.freeze({
 const ERROR_MESSAGES = Object.freeze({
   list: "Não foi possível carregar as contas.",
   pay: "Não foi possível marcar as contas como pagas.",
-  postpone: "Não foi possível adiar a conta."
+  updatePattern: "Não foi possível salvar a conta."
 });
 const FEEDBACK_DURATION_MS = 3000;
 
@@ -23,6 +23,12 @@ const markPaidButton = document.querySelector("#mark-paid-button");
 const feedbackElement = document.querySelector("#feedback");
 const statusElement = document.querySelector("#app-status");
 const filterControlsElement = document.querySelector(".filter-bar");
+const editModalElement = document.querySelector("#edit-account-modal");
+const editFormElement = document.querySelector("#edit-account-form");
+const editNameInput = document.querySelector("#edit-account-name");
+const editDueDateInput = document.querySelector("#edit-account-due-date");
+const editValueInput = document.querySelector("#edit-account-value");
+const editSubmitButton = document.querySelector("#edit-account-submit");
 
 const summaryElements = {
   overdue: document.querySelector("#summary-overdue"),
@@ -31,9 +37,9 @@ const summaryElements = {
 };
 
 const groupDefinitions = [
-  { id: "overdue", title: "Vencidas" },
-  { id: "today", title: "Vencem hoje" },
-  { id: "upcoming", title: "Próximas" }
+  { id: "overdue", title: "Não Pagas", presentation: "nao_pagas" },
+  { id: "today", title: "Hoje", presentation: "hoje" },
+  { id: "upcoming", title: "A Pagar", presentation: "a_pagar" }
 ];
 
 const filterDefinitions = [
@@ -49,29 +55,29 @@ const visualGroupMap = Object.freeze({
   proxima: "upcoming"
 });
 
+const presentationGroupMap = Object.freeze({
+  nao_pagas: "overdue",
+  hoje: "today",
+  a_pagar: "upcoming"
+});
+
+const presentationLabelMap = Object.freeze({
+  overdue: "Não Pagas",
+  today: "Hoje",
+  upcoming: "A Pagar"
+});
+
 const today = startOfDay(new Date());
 const selectedAccountIds = new Set();
 let accounts = [];
 let activeFilter = "all";
 let feedbackTimeoutId = null;
 let isPaymentInProgress = false;
-
-// Dados fictícios
-const demoAccounts = [
-  createDemoAccount("conta-001", "Internet Residencial", "Pessoal", "manual", -4, 42800, 168.2),
-  createDemoAccount("conta-002", "Licença de Design", "Profissional", "automatic", -1, 21900, 86.1),
-  createDemoAccount("conta-003", "Energia do Apartamento", "Pessoal", "manual", 0, 57350, 225.3),
-  createDemoAccount("conta-004", "Armazenamento em Nuvem", "Profissional", "automatic", 0, 12600, 49.5),
-  createDemoAccount("conta-005", "Seguro Residencial", "Pessoal", "automatic", 3, 35400, 139.1),
-  createDemoAccount("conta-006", "Serviço de Telefonia", "Profissional", "manual", 9, 28750, 113)
-];
+let isEditInProgress = false;
+let editingAccountId = null;
 
 function startOfDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-function addDays(date, amount) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
 }
 
 function formatApiDate(date) {
@@ -84,29 +90,6 @@ function formatApiDate(date) {
 function parseApiDate(value) {
   const [year, month, day] = value.split("-").map(Number);
   return new Date(year, month - 1, day);
-}
-
-function createDemoAccount(id, name, category, paymentType, dueOffset, arsValue, brlValue) {
-  return {
-    id,
-    name,
-    category,
-    paymentType,
-    originalDueDate: addDays(today, dueOffset),
-    dueDate: addDays(today, dueOffset),
-    arsValue,
-    brlValue,
-    status: "Pendente",
-    visualGroup: null
-  };
-}
-
-function cloneDemoAccounts() {
-  return demoAccounts.map((account) => ({
-    ...account,
-    originalDueDate: new Date(account.originalDueDate),
-    dueDate: new Date(account.dueDate)
-  }));
 }
 
 // Camada de API e acesso aos dados
@@ -134,11 +117,19 @@ function assertApiConfiguration() {
   }
 }
 
-function buildApiUrl(path) {
-  return `${APP_CONFIG.API_BASE_URL.replace(/\/$/, "")}${path}`;
+function buildApiUrl(path, baseUrl = APP_CONFIG.API_BASE_URL) {
+  return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
-async function apiRequest(path, { method = "GET", body } = {}) {
+async function apiRequest(
+  path,
+  {
+    method = "GET",
+    body,
+    contentType = "application/json",
+    baseUrl = APP_CONFIG.API_BASE_URL
+  } = {}
+) {
   assertApiConfiguration();
 
   const headers = {
@@ -150,13 +141,13 @@ async function apiRequest(path, { method = "GET", body } = {}) {
   }
 
   if (body) {
-    headers["Content-Type"] = "application/json";
+    headers["Content-Type"] = contentType;
   }
 
   let response;
 
   try {
-    response = await fetch(buildApiUrl(path), {
+    response = await fetch(buildApiUrl(path, baseUrl), {
       method,
       headers,
       body: body ? JSON.stringify(body) : undefined,
@@ -201,51 +192,44 @@ function mapApiAccount(account) {
     arsValue: account.valor_original,
     brlValue: account.valor_convertido,
     status: account.status === "adiada" ? "Adiada" : "Pendente",
-    visualGroup: visualGroupMap[account.grupo_visual] || null
+    visualGroup: presentationGroupMap[account.grupo_apresentacao]
+      || visualGroupMap[account.grupo_visual]
+      || null,
+    presentationGroup: account.grupo_apresentacao
+      || groupDefinitions.find((group) => group.id === visualGroupMap[account.grupo_visual])?.presentation
+      || null,
+    presentationLabel: account.grupo_apresentacao_label
+      || presentationLabelMap[visualGroupMap[account.grupo_visual]]
+      || null
   };
 }
 
 async function fetchAccounts() {
-  if (APP_MODE === "demo") {
-    return cloneDemoAccounts();
-  }
-
   const data = await apiRequest("/accounts");
   return data.accounts.map(mapApiAccount);
 }
 
 async function payAccounts(accountIds) {
-  if (APP_MODE === "api") {
-    await apiRequest("/accounts/pay", {
-      method: "POST",
-      body: { conta_ids: accountIds }
-    });
-  }
+  await apiRequest("/accounts/pay", {
+    method: "POST",
+    body: { conta_ids: accountIds },
+    contentType: "text/plain"
+  });
 
   accounts = accounts.filter((account) => !accountIds.includes(account.id));
 }
 
-async function postponeAccount(accountId, newDate) {
-  if (APP_MODE === "api") {
-    await apiRequest("/accounts/postpone", {
-      method: "POST",
-      body: {
-        conta_id: accountId,
-        adiada_para: newDate
-      }
-    });
-  }
-
-  const account = accounts.find((item) => item.id === accountId);
-
-  if (!account) {
-    throw new AppDataError("Conta não encontrada.", "ACCOUNT_NOT_FOUND");
-  }
-
-  account.dueDate = parseApiDate(newDate);
-  account.status = "Adiada";
-  account.visualGroup = "upcoming";
-  return account;
+async function updateAccountPattern(accountId, updates) {
+  return apiRequest("/accounts/update-pattern", {
+    method: "POST",
+    body: {
+      conta_id: accountId,
+      nome: updates.name,
+      vencimento: updates.dueDate,
+      valor_original: updates.arsValue
+    },
+    baseUrl: APP_CONFIG.API_WEBHOOK_BASE_URL
+  });
 }
 
 // Formatação e renderização da interface
@@ -330,13 +314,13 @@ function renderAccountCard(account, group) {
               >
             </label>
             <button
-              class="account-icon-action account-icon-action--postpone"
+              class="account-icon-action account-icon-action--edit"
               type="button"
-              data-action="postpone"
-              aria-label="Adiar ${safeAccountName}"
-              title="Adiar"
+              data-action="edit"
+              aria-label="Editar ${safeAccountName}"
+              title="Editar"
             >
-              <i class="fa-solid fa-clock" aria-hidden="true"></i>
+              <span class="account-action-dots" aria-hidden="true"></span>
             </button>
           </div>
         </div>
@@ -393,11 +377,7 @@ function renderEmptyState() {
   const hasFilter = activeFilter !== "all";
   const description = hasFilter
     ? "Nenhuma conta neste filtro."
-    : (
-      APP_MODE === "demo"
-        ? "As alterações são apenas locais e serão desfeitas ao recarregar."
-        : "Não há contas pendentes para exibir."
-    );
+    : "Não há contas pendentes para exibir.";
 
   return `
     <div class="empty-state">
@@ -440,8 +420,21 @@ function updateSelectionActions() {
   accountsListElement
     .querySelectorAll(".account-select, .account-icon-action")
     .forEach((control) => {
-      control.disabled = isPaymentInProgress;
+      control.disabled = isPaymentInProgress || isEditInProgress;
     });
+}
+
+function setEditFormDisabled(disabled) {
+  editFormElement
+    ?.querySelectorAll("input, button")
+    .forEach((control) => {
+      control.disabled = disabled;
+    });
+
+  if (editSubmitButton) {
+    editSubmitButton.textContent = disabled ? "Salvando..." : "Salvar";
+    editSubmitButton.setAttribute("aria-busy", String(disabled));
+  }
 }
 
 function renderAccounts() {
@@ -522,23 +515,6 @@ function updateActiveFilter(filterId) {
   renderAccounts();
 }
 
-function calculatePostponeDate(account) {
-  const originalDueDate = startOfDay(account.originalDueDate || account.dueDate);
-  const reminderDate = addDays(originalDueDate, -2);
-
-  if (reminderDate > today) {
-    return {
-      date: reminderDate,
-      usesFallback: false
-    };
-  }
-
-  return {
-    date: addDays(today, 7),
-    usesFallback: true
-  };
-}
-
 async function handleMarkSelectedAsPaid() {
   const accountIds = [...selectedAccountIds];
 
@@ -553,9 +529,8 @@ async function handleMarkSelectedAsPaid() {
     await payAccounts(accountIds);
     selectedAccountIds.clear();
     renderAccounts();
-    const localChangeLabel = APP_MODE === "demo" ? " Alteração local." : "";
     showFeedback(
-      `${accountIds.length} ${accountIds.length === 1 ? "conta marcada" : "contas marcadas"} como ${accountIds.length === 1 ? "paga" : "pagas"}.${localChangeLabel}`
+      `${accountIds.length} ${accountIds.length === 1 ? "conta marcada" : "contas marcadas"} como ${accountIds.length === 1 ? "paga" : "pagas"}.`
     );
   } catch (error) {
     showOperationError("pay", error);
@@ -565,26 +540,71 @@ async function handleMarkSelectedAsPaid() {
   }
 }
 
-async function handlePostponeAccount(accountId) {
+function openEditModal(accountId) {
+  const account = accounts.find((item) => item.id === accountId);
+
+  if (!account || !editModalElement || !editNameInput || !editDueDateInput || !editValueInput) {
+    return;
+  }
+
+  editingAccountId = accountId;
+  editNameInput.value = account.name;
+  editDueDateInput.value = formatApiDate(account.dueDate);
+  editValueInput.value = String(Math.round(account.arsValue));
+  editModalElement.hidden = false;
+  editNameInput.focus();
+}
+
+function closeEditModal({ force = false } = {}) {
+  if (isEditInProgress && !force) {
+    return;
+  }
+
+  editingAccountId = null;
+
+  if (editModalElement) {
+    editModalElement.hidden = true;
+  }
+
+  editFormElement?.reset();
+}
+
+async function handleEditSubmit(event) {
+  event.preventDefault();
+
+  if (!editingAccountId || isEditInProgress || !editNameInput || !editDueDateInput || !editValueInput) {
+    return;
+  }
+
+  const name = editNameInput.value.trim();
+  const dueDate = editDueDateInput.value;
+  const arsValue = Number(editValueInput.value);
+
+  if (!name || !dueDate || !Number.isFinite(arsValue) || arsValue < 0) {
+    showFeedback("Preencha nome, vencimento e valor para salvar.");
+    return;
+  }
+
+  isEditInProgress = true;
+  setEditFormDisabled(true);
+  updateSelectionActions();
+
   try {
-    const currentAccount = accounts.find((account) => account.id === accountId);
+    const accountId = editingAccountId;
+    await updateAccountPattern(accountId, { name, dueDate, arsValue });
 
-    if (!currentAccount) {
-      throw new AppDataError("Conta não encontrada.", "ACCOUNT_NOT_FOUND");
-    }
+    accounts = await fetchAccounts();
 
-    const postpone = calculatePostponeDate(currentAccount);
-    const newDate = formatApiDate(postpone.date);
-    const account = await postponeAccount(accountId, newDate);
     selectedAccountIds.delete(accountId);
+    closeEditModal({ force: true });
     renderAccounts();
-    const localChangeLabel = APP_MODE === "demo" ? " Alteração local." : "";
-    const message = postpone.usesFallback
-      ? `${account.name} foi adiada por 7 dias.`
-      : `${account.name} foi adiada para ${formatDate(postpone.date)}.`;
-    showFeedback(`${message}${localChangeLabel}`);
+    showFeedback("Conta salva como novo padrão.");
   } catch (error) {
-    showOperationError("postpone", error);
+    showOperationError("updatePattern", error);
+  } finally {
+    isEditInProgress = false;
+    setEditFormDisabled(false);
+    updateSelectionActions();
   }
 }
 
@@ -619,14 +639,30 @@ accountsListElement.addEventListener("click", (event) => {
   const accountCard = actionButton.closest("[data-account-id]");
   const accountId = accountCard.dataset.accountId;
 
-  if (actionButton.dataset.action === "postpone") {
-    void handlePostponeAccount(accountId);
+  if (actionButton.dataset.action === "edit") {
+    openEditModal(accountId);
   }
 
 });
 
 markPaidButton.addEventListener("click", () => {
   void handleMarkSelectedAsPaid();
+});
+
+editFormElement?.addEventListener("submit", (event) => {
+  void handleEditSubmit(event);
+});
+
+editModalElement?.addEventListener("click", (event) => {
+  if (event.target === editModalElement || event.target.closest('[data-action="close-edit"]')) {
+    closeEditModal();
+  }
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && editModalElement && !editModalElement.hidden) {
+    closeEditModal();
+  }
 });
 
 function updateStatus(message) {
@@ -636,18 +672,16 @@ function updateStatus(message) {
 }
 
 async function registerServiceWorker() {
-  const localChangeLabel = APP_MODE === "demo" ? " · alterações locais" : "";
-
   if (!("serviceWorker" in navigator)) {
-    updateStatus(`Aplicação pronta${localChangeLabel}`);
+    updateStatus("Aplicação pronta");
     return;
   }
 
   try {
     await navigator.serviceWorker.register("./service-worker.js");
-    updateStatus(`Pronta para uso offline${localChangeLabel}`);
+    updateStatus("Pronta para uso offline");
   } catch {
-    updateStatus(`Aplicação pronta${localChangeLabel}`);
+    updateStatus("Aplicação pronta");
   }
 }
 

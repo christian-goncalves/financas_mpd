@@ -21,12 +21,12 @@ O plano executável e a fonte oficial de status do MVP estão em [MVP.md](MVP.md
 - Proxy Traefik persistente validado nos quatro paths públicos `/api/*`, incluindo preflight.
 - `FINANCAS_ALLOWED_ORIGIN` configurada como `https://financas-mpd.vercel.app` e validada no EasyPanel, Swarm, container e respostas públicas.
 - PWA e quatro endpoints publicados em modo público temporário, acessíveis de qualquer dispositivo sem token.
-- PWA configurado em modo `api` com a base pública `https://n8n.autamacao.shop/api`, sem token embutido no frontend.
-- Quatro fluxos públicos validados pelo PWA de produção; massa fictícia restaurada e política de não retenção confirmada.
+- PWA configurado para operar via API com a base pública `https://n8n.autamacao.shop/api`, sem token embutido no frontend.
+- Quatro fluxos públicos validados pelo PWA de produção; massa de teste controlada restaurada e política de não retenção confirmada.
 - Teste controlado de falha do lembrete registrado em `notificacoes`, com `contas_mensais` inalterada e deduplicação confirmada.
 - Workflow diário de lembretes `yQgTRvFBZvvsYKXs` publicado na versão testada, ativo com um gatilho às `08:00` em `America/Sao_Paulo`.
 - Workflow de liquidação `uwtIrs8q6lCm6ZDZ` publicado e ativo diariamente às `00:05`.
-- Workflow de geração `YZ70BdQtS7LPE72r` publicado e ativo diariamente às `06:00`, com janela inclusiva hoje–D+30.
+- Geração da competência seguinte incorporada ao workflow diário de lembretes `yQgTRvFBZvvsYKXs` às `08:00`; o workflow separado `YZ70BdQtS7LPE72r` foi desativado e arquivado.
 - Workflow SIM arquivado; as abas temporárias de contas e notificações foram removidas.
 - Execuções manuais `6793` e `6794` geraram agosto e comprovaram idempotência; `6796` enviou três lembretes reais e `6797` não reenviou as mesmas etapas.
 - O modo público foi validado sem token: a PWA renderizou 36 contas e as rotas de ação chegaram às validações de negócio sem alterar dados.

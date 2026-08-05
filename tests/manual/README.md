@@ -44,12 +44,12 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - Resumo coerente com os três grupos.
 - Nome, categoria, tipo, data, ARS e BRL iguais à base.
 - ARS principal e BRL secundário.
-- Checkbox e Adiar acessíveis em cada card.
-- Filtros Todas, Vencidas, Hoje e Próximas disponíveis abaixo do resumo.
+- Checkbox e botão de três pontos acessíveis em cada card.
+- Filtros Todas, Não Pagas, Hoje e A Pagar disponíveis abaixo do resumo.
 - Botão de pagamento oculto sem seleção e exibido como `Pagar` com seleção.
 - Mensagens simples de sucesso ou falha.
-- Persistência após recarga no modo `api`.
-- Conta paga desaparece; conta adiada permanece e usa a nova data.
+- Persistência após recarga usando a API.
+- Conta paga desaparece; conta editada preserva o status e usa o novo padrão após recarga.
 - O botão de ignorar não fica exposto no frontend durante a validação atual.
 - O status não é exibido como badge: deve ser inferido pelo agrupamento e confirmado na planilha.
 
@@ -66,9 +66,9 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 ### `notificacoes`
 
 - `notificacao_id` único e `conta_id` existente.
-- Etapa em `D-5`, `D-2`, `D-1`, `D0` ou `D+1`.
+- Etapa no formato `D0`, `D-<n>` ou `D+<n>`.
 - Canal `whatsapp`, timestamp válido e status `enviada` ou `erro`.
-- Somente `enviada` bloqueia a mesma chave `conta_id + etapa + canal`.
+- Histórico `enviada` não bloqueia novo envio diário de conta ainda pendente ou adiada.
 - O registro de notificação não modifica `contas_mensais`.
 
 ### `cotacoes_mensais`
@@ -101,7 +101,7 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 
 - **Pré-condição:** data local da rodada registrada.
 - **Ação:** calcular a data efetiva usando `adiada_para` quando preenchida e `vencimento` nos demais casos.
-- **Interface:** datas passadas em Vencidas, data atual em Vencem hoje e futuras em Próximas.
+- **Interface:** datas passadas em Não Pagas, data atual em Hoje e futuras em A Pagar.
 - **Base:** nenhuma mudança; os dados justificam todos os contadores.
 - **Aprovação:** soma dos três grupos igual ao total exibido.
 
@@ -145,13 +145,13 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - **Base:** em `D+1`, `status = paga`, `pago_em = atualizado_em`, `adiada_para` vazio e vencimento preservado.
 - **Aprovação:** repetição da liquidação atualiza zero linhas.
 
-### TM-09 — Adiamento e repetição
+### TM-09 — Editar padrão e repetição
 
-- **Pré-condição:** conta pendente reservada, fora dos lembretes do dia, e snapshot realizado.
-- **Ação:** pressionar Adiar duas vezes no mesmo dia.
-- **Interface:** primeira ação usa `vencimento original - 2 dias` quando essa data for futura; se a conta já venceu, vence hoje, vence amanhã ou vence em até dois dias, usa `data do teste + 7 dias`. O card é reagrupado pela nova data efetiva.
-- **Base:** `status = adiada`, `adiada_para` correta e `vencimento` preservado; repetição não muda `atualizado_em`.
-- **Aprovação:** data efetiva, grupo e idempotência conferem.
+- **Pré-condição:** conta pendente reservada e snapshot de `contas_mensais` e `despesas_config`.
+- **Ação:** abrir o botão de três pontos, salvar nome, vencimento e valor válidos; repetir a mesma edição.
+- **Interface:** modal mostra apenas os três campos permitidos; card reflete nome, data e valor depois do salvamento e da recarga.
+- **Base:** `status`, pagamento, adiamento, categoria, tipo, origem e notificações permanecem preservados; repetição retorna sucesso sem efeito extra.
+- **Aprovação:** ocorrência atual e padrão recorrente ficam consistentes.
 
 ### TM-10 — Ignorar e repetição
 
@@ -177,21 +177,21 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 - **Base:** IDs e referências válidos, enums corretos e nenhuma chave de sucesso duplicada.
 - **Aprovação:** zero referência órfã ou duplicidade funcional.
 
-### TM-13 — Envio real e deduplicação
+### TM-13 — Envio real e auditoria
 
 - **Pré-condição:** contas restauradas, candidatos calculados, instância e grupo conferidos e autorização explícita obtida.
 - **Ação:** executar o workflow de lembretes, conferir WhatsApp e planilha e executar novamente.
-- **Interface:** nenhuma mudança financeira; primeiro envio consolidado chega e o segundo não se repete.
-- **Base:** primeira execução cria uma linha por conta/etapa; segunda não cria linha para chave já `enviada`; `contas_mensais` fica idêntica.
-- **Aprovação:** quantidade igual aos candidatos e repetição sem novo envio. Sem candidato, aguardar a próxima ocorrência natural; não fabricar dados.
+- **Interface:** nenhuma mudança financeira; cada execução autorizada envia novamente as contas que continuam pendentes ou adiadas.
+- **Base:** cada execução cria uma linha de auditoria por conta enviada; `contas_mensais` fica idêntica.
+- **Aprovação:** quantidade igual às contas `pendente` ou `adiada` da aba configurada, agrupadas como Não Pagas, Hoje e A Pagar. Sem conta pendente ou adiada, aguardar a próxima ocorrência natural; não fabricar dados.
 
-### TM-14 — Geração contínua D+30
+### TM-14 — Geração antecipada da competência seguinte no ciclo das 08:00
 
-- **Pré-condição:** todas as competências necessárias entre hoje e `D+30` possuem uma única cotação válida.
-- **Ação:** executar manualmente o gerador duas vezes.
-- **Interface:** quantidade e cards permanecem iguais.
-- **Base:** somente ocorrências ausentes dentro da janela são criadas; pares `despesa_id + competencia` permanecem únicos e contas antigas são preservadas.
-- **Aprovação:** repetição resulta em zero inclusões; cotação ausente aborta sem escrita; dia inexistente usa o último dia do mês.
+- **Pré-condição:** a competência seguinte possui uma única cotação válida.
+- **Ação:** validar o workflow diário de lembretes em execução controlada no dia correto, dois dias antes do último dia do mês, e repetir a execução sem envio real.
+- **Interface:** contas da competência seguinte ficam disponíveis após a geração.
+- **Base:** todas as ocorrências ausentes da competência seguinte são criadas antes da seleção dos lembretes; pares `despesa_id + competencia` permanecem únicos e contas antigas são preservadas.
+- **Aprovação:** repetição resulta em zero inclusões; cotação ausente impede somente a geração; dia inexistente usa o último dia do mês.
 
 ### TM-15 — Instalação no iPhone
 
@@ -230,7 +230,7 @@ Os números acima não substituem a leitura no dia do teste. `notificacoes`, sta
 1. **Checkpoint 0 — documentação e baseline:** preencher o log e validar TM-01 a TM-05.
 2. **Checkpoint 1 — iPhone sem escrita:** executar TM-06, TM-15 e TM-16.
 3. **Checkpoint 2 — ações persistentes:** executar TM-07 a TM-11, uma conta por vez e com restauração comprovada.
-4. **Checkpoint 3 — automações diárias:** executar a liquidação idempotente de TM-08 e a geração D+30 de TM-14 com cotações completas.
+4. **Checkpoint 3 — automações diárias:** executar a liquidação idempotente de TM-08 e a geração antecipada de TM-14 com cotação completa da competência seguinte.
 5. **Checkpoint 4 — notificações:** executar TM-12; TM-13 exige autorização imediatamente anterior ao envio.
 6. **Checkpoint 5 — usuária principal:** executar TM-17 após estabilidade técnica.
 7. **Checkpoint final:** executar TM-18 e emitir o veredito da rodada.

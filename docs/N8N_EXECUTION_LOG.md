@@ -2,6 +2,41 @@
 
 Este documento preserva evidências operacionais. Ele não define o contrato nem a próxima tarefa. A especificação vigente está em [N8N_WEBHOOKS.md](N8N_WEBHOOKS.md), e o plano executável está em [MVP.md](../tasks/MVP.md).
 
+## WhatsApp sem prefixo ARS nos valores — 2026-08-04
+
+- Workflow consolidado: `FINANCAS-MPD - Lembretes consolidados diários`.
+- ID: `yQgTRvFBZvvsYKXs`.
+- Versão publicada: `7ca91aad-9452-490c-bde7-052d7ba8d86f`.
+- Alteração: o nó `Code - Preparar lembrete consolidado` passou a renderizar cada conta como `- _Nome_ - ` + valor inteiro em monoespaçado, sem o prefixo textual `ARS`.
+- Fonte visual: [MODEL_MESSAGE_WHATSAPP.md](MODEL_MESSAGE_WHATSAPP.md), cuja seção de exemplo mostra valores como `60.000`.
+- Teste real autorizado: execução manual `7184`.
+- Evidência persistida: 14 linhas `notif_7184_*` em `notificacoes`, todas com `status_envio = enviada`, registradas em `2026-08-04T22:06:31.285-03:00`.
+- Como a retenção do workflow está desabilitada, o detalhe da execução saiu do n8n após finalizar; a confirmação operacional foi feita pela escrita em `notificacoes`. A confirmação visual final depende da leitura no WhatsApp.
+
+## WhatsApp diário com todas as pendentes — 2026-08-04
+
+- Workflow consolidado: `FINANCAS-MPD - Lembretes consolidados diários`.
+- ID: `yQgTRvFBZvvsYKXs`.
+- Versão publicada: `f714b80a-a03f-49db-85f2-3971faf69e10`.
+- Estado após publicação: `active = true`, `isArchived = false`, um gatilho diário às `08:00` em `America/Sao_Paulo`.
+- Regra vigente: depois da geração mensal, ou da decisão de não gerar, o fluxo relê a aba configurada de `contas_mensais` e inclui todas as contas com `status = pendente` ou `adiada`.
+- Agrupamento vigente: `NÃO PAGAS`, `HOJE` e `A PAGAR`, calculado pela data efetiva da conta. Para conta adiada, a data efetiva é `adiada_para`; nos demais casos, `vencimento`.
+- `notificacoes` registra auditoria de envio e não bloqueia reenvio diário de contas que continuam `pendente` ou `adiada`.
+- `notificacoes.etapa` registra o deslocamento calculado da data efetiva: `D0`, `D-<n>` ou `D+<n>`.
+- Teste controlado sem envio real: `test_workflow` com dados fixados, execução `7182`, status `success`.
+- O teste fixou os nós de Evolution e de escrita em `notificacoes`; portanto, não houve envio real de WhatsApp nem escrita real na planilha nesta validação.
+
+## Geração mensal integrada ao WhatsApp das 08:00 — 2026-08-04, publicação anterior
+
+- Workflow consolidado: `FINANCAS-MPD - Lembretes consolidados diários`.
+- ID: `yQgTRvFBZvvsYKXs`.
+- Versão publicada naquele ajuste: `39da73a8-0c0d-4c98-a61b-aa90498eecbd`.
+- Estado após publicação: `active = true`, `isArchived = false`, um gatilho diário às `08:00` em `America/Sao_Paulo`.
+- Workflow separado arquivado: `FINANCAS-MPD - Gerar contas mensais` (`YZ70BdQtS7LPE72r`).
+- Regra vigente: o fluxo das `08:00` verifica se a data local é dois dias antes do último dia do mês, gera a competência seguinte quando aplicável, relê `contas_mensais` e então monta o WhatsApp.
+- Falha de cotação ausente, duplicada ou inválida impede somente a criação de novas contas naquele ciclo; os lembretes das contas já existentes continuam sendo montados.
+- Nenhum envio real de WhatsApp, execução manual com escrita ou alteração adicional na planilha foi executado nesta publicação.
+
 ## Geração mensal conectada ao Google Sheets — 2026-07-21
 
 - Workflow: `FINANCAS-MPD - Gerar contas mensais`.
@@ -27,7 +62,7 @@ A execução `6754` criou temporariamente:
 
 Todas usaram `cotacao_usada = 250`, moedas normalizadas para ARS/BRL e status `pendente`. A execução `6755` confirmou idempotência por `despesa_id + competencia`: o nó de escrita não executou e `appended_rows` foi `0`.
 
-Após os testes, somente as três linhas criadas pela execução `6754` foram removidas. A leitura final de `contas_mensais!A1:N6` confirmou as quatro linhas fictícias originais de `2026-07`, seus valores, estados e validações, sem ocorrência residual de `2026-08`. As três linhas vazias foram repostas no final da grade, restaurando também suas 1000 linhas originais.
+Após os testes, somente as três linhas criadas pela execução `6754` foram removidas. A leitura final de `contas_mensais!A1:N6` confirmou as quatro linhas originais de teste de `2026-07`, seus valores, estados e validações, sem ocorrência residual de `2026-08`. As três linhas vazias foram repostas no final da grade, restaurando também suas 1000 linhas originais.
 
 ## Ignorar conectado ao Google Sheets — 2026-07-21
 
@@ -52,7 +87,7 @@ Após os testes, somente as três linhas criadas pela execução `6754` foram re
 | Conta cancelada | `409 INVALID_STATE`, sem escrita | `6749` |
 | Token ausente | `401 UNAUTHORIZED` | `6750` |
 | Token inválido | `401 UNAUTHORIZED` | `6751` |
-| Leitura após restauração da massa fictícia | `200`, três contas e resumo `1/1/1` | `6752` |
+| Leitura após restauração da massa de teste controlada | `200`, três contas e resumo `1/1/1` | `6752` |
 
 As duas linhas modificadas foram restauradas em uma única operação: a primeira voltou a `pendente`, a terceira voltou a `adiada`, `ignorada_em` voltou a vazio, `adiada_para` permaneceu em `2026-07-30` e os timestamps originais foram repostos. As validações de status foram preservadas.
 
@@ -81,7 +116,7 @@ O ramo de sucesso foi testado com contexto autorizado controlado para não revel
 | Repetição da nova data | `200`, nó de escrita não executado e timestamp preservado | `6737` |
 | Token ausente | `401 UNAUTHORIZED` | `6738` |
 | Token inválido | `401 UNAUTHORIZED` | `6739` |
-| Leitura após restauração da massa fictícia | `200`, três contas e resumo `1/1/1` | `6740` |
+| Leitura após restauração da massa de teste controlada | `200`, três contas e resumo `1/1/1` | `6740` |
 
 As duas linhas modificadas foram restauradas em uma única operação: a primeira voltou a `pendente`, a terceira voltou a `adiada` para `2026-07-30` e os timestamps originais foram repostos. A leitura posterior confirmou as validações de status, os valores originais e o resumo `1/1/1`.
 
@@ -108,14 +143,14 @@ O ramo de sucesso foi testado com contexto autorizado controlado para não revel
 | Uma conta já paga e uma adiada | `200`, somente a adiada alterada e `updated_count: 1` | `6725` |
 | Token ausente | `401 UNAUTHORIZED` | `6726` |
 | Token inválido | `401 UNAUTHORIZED` | `6727` |
-| Leitura após restauração da massa fictícia | `200`, três contas e resumo `1/1/1` | `6728` |
+| Leitura após restauração da massa de teste controlada | `200`, três contas e resumo `1/1/1` | `6728` |
 
 Evidências adicionais:
 
 - Antes do teste válido, a leitura direta confirmou que o cenário `409` não havia alterado a conta pendente.
 - A execução `6723` enviou dois itens ao mesmo nó de atualização e ambos receberam exatamente o mesmo timestamp.
 - A execução `6724` não executou o nó de escrita e preservou `pago_em` e `atualizado_em`.
-- A massa fictícia foi restaurada depois dos testes: as duas primeiras contas voltaram a `pendente`, a terceira voltou a `adiada`, `pago_em` voltou a vazio e os timestamps originais foram repostos.
+- A massa de teste controlada foi restaurada depois dos testes: as duas primeiras contas voltaram a `pendente`, a terceira voltou a `adiada`, `pago_em` voltou a vazio e os timestamps originais foram repostos.
 - A restauração preservou as validações de status e não alterou `adiada_para` nem outras colunas.
 - A execução `6728` confirmou pelo workflow de listagem que a base restaurada voltou a produzir uma conta Vencida, uma de Hoje e uma Próxima.
 
@@ -363,18 +398,18 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 
 - Data: 2026-07-21 13:12:21 (`America/Sao_Paulo`).
 - O bootstrap `app/auth-session.js` foi carregado antes dos demais assets e validado sem usar o token real.
-- Um token fictício no parâmetro `token` foi aceito, gravado somente em `sessionStorage` e removido imediatamente da URL, preservando outros parâmetros e o fragmento.
+- Um token de teste no parâmetro `token` foi aceito, gravado somente em `sessionStorage` e removido imediatamente da URL, preservando outros parâmetros e o fragmento.
 - A recarga na mesma sessão restaurou o valor; um link inválido limpou a sessão e apresentou mensagem segura.
 - A verificação em navegador com 430 px renderizou seis cards, sem erros de console e sem requisições externas.
-- `APP_MODE` permaneceu em `demo`; nenhum endpoint, workflow, planilha ou serviço externo foi chamado por esse teste.
+- A validação isolada não chamou endpoint, workflow, planilha ou serviço externo.
 
 ## Configuração do PWA em modo API
 
 - Data: 2026-07-21 13:35:39 (`America/Sao_Paulo`).
-- `APP_MODE` foi alterado para `api` e `API_BASE_URL` foi definida como `https://n8n.autamacao.shop/api`.
+- O PWA foi configurado para operar via API com `API_BASE_URL` definida como `https://n8n.autamacao.shop/api`.
 - O token continua ausente dos assets e é lido em tempo de execução da sessão criada pelo magic link.
 - Sem token, o navegador não iniciou requisição e exibiu orientação segura.
-- Com token exclusivamente fictício e resposta interceptada, o PWA chamou `GET /api/accounts` com Bearer, sem cookies ou `Referer`, e renderizou três contas com resumo `1/1/1`.
+- Com token exclusivamente de teste e resposta interceptada, o PWA chamou `GET /api/accounts` com Bearer, sem cookies ou `Referer`, e renderizou três contas com resumo `1/1/1`.
 - Um nome contendo marcação HTML foi exibido como texto, sem criar elemento executável.
 - Nenhum endpoint real, workflow ou dado persistente foi acessado naquela validação simulada; os quatro fluxos publicados foram exercitados posteriormente, conforme a seção seguinte.
 
@@ -383,9 +418,9 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - Data: 2026-07-21 15:08:27 (`America/Sao_Paulo`).
 - Deployment de produção: `dpl_B2MhrNhVeuHdpYGwefmT3ATg8aX2`, estado `READY`, alias `https://financas-mpd.vercel.app`.
 - O teste foi executado em navegador com 430 px e token mantido somente em memória; seu valor não foi exibido ou persistido.
-- O magic link foi sanitizado e a listagem retornou três cards com nomes fictícios permitidos e resumo `1/1/1`.
+- O magic link foi sanitizado e a listagem retornou três cards com nomes de teste permitidos e resumo `1/1/1`.
 
-| Fluxo pelo PWA | Conta fictícia | Resultado |
+| Fluxo pelo PWA | Conta de teste | Resultado |
 |---|---|---|
 | Listar | três contas exibíveis | `GET /api/accounts` → `200` |
 | Adiar | `conta_teste_2026_07_001` | `POST /api/accounts/postpone` → `200`; status `adiada`, data `2026-07-28` |
@@ -411,7 +446,7 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - Foi criado o workflow `FINANCAS-MPD - Lembretes consolidados diários`, ID `yQgTRvFBZvvsYKXs`, com seis nós e credenciais autoatribuídas para Google Sheets e Evolution API.
 - O workflow foi validado nó a nó e como grafo completo, sem erros ou avisos, e permanece inativo e não publicado.
 - A execução diária está configurada para `08:00` em `America/Sao_Paulo`; a retenção de sucesso, erro, execução manual e progresso por nó está desabilitada.
-- O workflow diário não foi executado nesta etapa, pois a massa fictícia contém um lembrete elegível e o registro em `notificacoes` e a prevenção de duplicidade ainda não foram implementados.
+- O workflow diário não foi executado nesta etapa, pois a massa de teste controlada contém um lembrete elegível e o registro em `notificacoes` e a prevenção de duplicidade ainda não foram implementados.
 
 ## Fase 4 — Classificação das etapas de lembrete
 
@@ -421,7 +456,7 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - Versão após a alteração: `d256ed1b-1243-48e7-b456-7026e094d047`.
 - Somente o código do nó `Code - Preparar lembrete consolidado` foi alterado.
 - A regra usa `vencimento` para `pendente`, `adiada_para` para `adiada` e o fuso `America/Sao_Paulo`.
-- O teste fictício classificou `D-5: 1`, `D-2: 2` — incluindo uma conta adiada —, `D-1: 1`, `D0: 1` e `D+1: 1`.
+- O teste controlado classificou `D-5: 1`, `D-2: 2` — incluindo uma conta adiada —, `D-1: 1`, `D0: 1` e `D+1: 1`.
 - Contas `paga`, `ignorada` e `cancelada` e uma despesa inativa foram excluídas.
 - Data civil impossível, ausência de `adiada_para`, referência inválida, duplicidade de IDs e valores inválidos passaram a interromper a preparação com erro seguro.
 - O nó foi validado pelo schema do n8n e a atualização não gerou avisos.
@@ -451,7 +486,7 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - Foi adicionado `Google Sheets - Ler notificacoes` entre a leitura de contas e a preparação do consolidado.
 - O nó lê `sheetId = 766508880`, executa uma vez e mantém uma saída vazia quando ainda não existem registros.
 - A chave de deduplicação é `conta_id + etapa + canal` e somente `status_envio = enviada` no canal `whatsapp` bloqueia o candidato.
-- O teste fictício bloqueou `conta_a|D0|whatsapp` por sucesso anterior.
+- O teste controlado bloqueou `conta_a|D0|whatsapp` por sucesso anterior.
 - O mesmo teste permitiu nova tentativa após erro, em etapa diferente e em canal diferente.
 - Quando não existe histórico, todos os candidatos permanecem elegíveis.
 - A atualização final não gerou avisos; o workflow permaneceu inativo e não publicado.
@@ -464,7 +499,7 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - Versão final após restaurar a configuração operacional: `a038a418-b115-472b-adfe-cf78167a8293`.
 - O snapshot inicial confirmou `conta_teste_2026_07_002` como `pendente`, sem `pago_em`, e a aba `notificacoes` sem registros.
 - Na primeira tentativa, a alteração temporária do nó Evolution foi rejeitada, mas a execução manual `6790` foi iniciada com a configuração original. O lembrete foi enviado ao grupo autorizado e registrado como `enviada`. Esse efeito não planejado é preservado neste log para rastreabilidade.
-- A execução controlada `6791` usou uma instância Evolution inexistente e entradas fictícias fixadas nos nós de leitura. A saída de erro foi processada e gerou `notif_6791_001_conta_teste_2026_07_002_D0` com `status_envio = erro`.
+- A execução controlada `6791` usou uma instância Evolution inexistente e entradas de teste fixadas nos nós de leitura. A saída de erro foi processada e gerou `notif_6791_001_conta_teste_2026_07_002_D0` com `status_envio = erro`.
 - A instância operacional `8611` foi restaurada imediatamente após o teste; o workflow permaneceu inativo e não publicado.
 - A comparação de `contas_mensais!A1:N20` antes e depois foi idêntica. A conta permaneceu `pendente`, `pago_em` permaneceu vazio e `atualizado_em` não mudou.
 - A execução manual `6792`, já com a configuração operacional, não criou nova linha em `notificacoes`: o registro anterior `enviada` bloqueou a mesma combinação `conta_id + etapa + canal` antes do envio.
@@ -489,7 +524,7 @@ Na validação inicial do proxy, as respostas sem `Origin` e para origem não au
 - `contas_mensais` recebeu 18 ocorrências para `2026-07`, todas com IDs únicos, referências válidas, vencimentos derivados e status `pendente`.
 - A cotação mensal foi corrigida para `290 ARS/BRL` em julho e agosto; as contas de julho foram recalculadas para o total convertido de BRL `8.598,43`.
 - `notificacoes` permaneceu somente com o cabeçalho, sem registros artificiais; `transacoes` permaneceu intacta.
-- A releitura confirmou cabeçalhos, validações, formatos, 18 pares únicos de `despesa_id + competencia` e ausência da massa fictícia anterior.
+- A releitura confirmou cabeçalhos, validações, formatos, 18 pares únicos de `despesa_id + competencia` e ausência da massa de teste anterior.
 
 ## Fase 5 — Teste do fluxo operacional
 

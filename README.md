@@ -55,24 +55,26 @@ As fases devem ser implementadas e testadas uma por vez. [tasks/MVP.md](tasks/MV
 ## Status da implementação
 
 - Fase 1 concluída: estrutura PWA estática em HTML, CSS e JavaScript puro, com manifest e service worker.
-- Fase 2 concluída: interface mobile-first com dados fictícios, agrupamentos, seleção múltipla e ações locais.
+- Fase 2 concluída: interface mobile-first com agrupamentos, seleção múltipla e ações integradas à API.
 - Fase 3 concluída: PWA, API n8n, Google Sheets, proxy, CORS e autenticação foram integrados e validados em produção.
-- Fase 4 concluída: credencial Evolution API, instância `8611`, grupo autorizado, envio, registro, deduplicação e tratamento de falha foram validados; o workflow diário está publicado e ativo.
+- Fase 4 concluída: credencial Evolution API, instância `8611`, grupo autorizado, envio, registro de auditoria e tratamento de falha foram validados; o workflow diário está publicado e ativo.
 - Os quatro endpoints da API usam Google Sheets e foram validados em modo de teste.
 - Persistência, estados incompatíveis e idempotência possuem evidências registradas.
 - A cotação do MVP foi definida como manual, mensal e armazenada por competência.
-- A aba `cotacoes_mensais` foi criada e validada com dado fictício.
-- O workflow diário de geração está publicado às `06:00` e mantém uma janela inclusiva de ocorrências entre hoje e `D+30`, com validação integral das cotações mensais.
+- A aba `cotacoes_mensais` foi criada e validada com dados de teste controlados.
+- A geração da competência seguinte foi incorporada ao workflow diário de WhatsApp das `08:00`: antes de montar o lembrete, o fluxo verifica se a data local é dois dias antes do último dia do mês e cria as contas ausentes do mês seguinte quando a cotação alvo está válida.
 - O workflow de liquidação está publicado às `00:05` e marca débitos automáticos vencidos como pagos de forma idempotente.
 - O PWA foi publicado em produção em `https://financas-mpd.vercel.app` e seus arquivos essenciais foram validados.
 - O código e o token de acesso foram preservados para futura refatoração, mas a exigência foi temporariamente desativada para a validação pública do MVP.
 - Os quatro workflows da API foram configurados para não reter dados de execuções bem-sucedidas, com erro ou manuais, nem progresso por nó.
 - Os quatro workflows da API foram publicados e validados nas URLs nativas de produção do n8n.
 - O proxy público expõe os quatro endpoints em `/api/*`, preserva as rotas internas `/webhook/api/*` e trata preflight sem criar webhook adicional.
+- A edição de padrão usa temporariamente a rota nativa publicada `POST /webhook/api/accounts/update-pattern` até o proxy Traefik expor o quinto path público `/api/accounts/update-pattern`.
 - O CORS está restrito à origem final `https://financas-mpd.vercel.app` no EasyPanel, n8n e proxy Traefik.
-- O PWA usa o modo `api` com a base pública `https://n8n.autamacao.shop/api` e, durante a validação do MVP, acessa os quatro endpoints sem token.
-- Listagem, adiamento, ignorar e pagamento foram executados pelo PWA de produção com dados fictícios; a planilha foi restaurada ao baseline `1/1/1` ao final.
-- O workflow de lembretes está publicado às `08:00`; contas manuais usam cinco etapas e débitos automáticos usam somente `D-2`, `D-1` e `D0`.
+- O PWA opera exclusivamente via API, usando a base pública `https://n8n.autamacao.shop/api` e, durante a validação do MVP, acessa os quatro endpoints sem token.
+- `contas_mensais_prod` preserva os dados reais; `contas_mensais_dev` é a cópia usada para desenvolvimento e testes. A origem é selecionada na configuração dos workflows n8n.
+- Listagem, adiamento, ignorar e pagamento foram executados pelo PWA de produção com dados de teste controlados; a planilha foi restaurada ao baseline `1/1/1` ao final.
+- O workflow de lembretes está publicado às `08:00`; ele envia todas as contas `pendente` ou `adiada` da aba configurada, agrupadas como Não Pagas, Hoje e A Pagar. `D-*` é calculado apenas como auditoria em `notificacoes`.
 
 ## Deploy do PWA
 
@@ -88,16 +90,16 @@ Testar o PWA no iPhone.
 
 A execução deve seguir a [suíte de testes manuais](tests/MANUAL_TESTS.md) e registrar cada resultado no [log de evidências](tests/manual/EXECUTION_LOG.md).
 
-A Fase 5 possui 18 despesas recorrentes e 36 contas mensais de julho e agosto de 2026. Geração, visualização autenticada, pagamento, adiamento, ignorar, restauração, lembretes e deduplicação foram validados. A próxima etapa é o teste no iPhone.
+A Fase 5 possui 18 despesas recorrentes e 36 contas mensais de julho e agosto de 2026. Geração, visualização autenticada, pagamento, adiamento, ignorar, restauração, lembretes e auditoria de envio foram validados. A próxima etapa é o teste no iPhone.
 
 ## Baseline visual aprovado
 
 A interface atual é a referência visual para as próximas fases:
 
 - Cabeçalho contendo apenas “Finanças MPD”.
-- Resumo superior com Vencidas, Vencem hoje e Próximas.
+- Resumo superior com Não Pagas, Hoje e A Pagar.
 - Cards compactos agrupados nessas três seções.
 - Categoria e tipo de pagamento na linha abaixo do título.
-- Checkbox, Adiar e Ignorar como controles compactos no canto superior direito.
+- Checkbox e ações como controles compactos no canto superior direito.
 - ARS como valor principal e BRL como valor secundário menor.
 - Sem textos auxiliares repetitivos ou badges internos de status nos cards.

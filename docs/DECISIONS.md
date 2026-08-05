@@ -20,7 +20,8 @@ Este documento registra decisões definitivas. Pontos ainda não resolvidos fica
 - O magic link entregará o token no parâmetro `token`; o PWA o consumirá antes dos demais assets, removerá o parâmetro com `history.replaceState` e preservará os demais componentes da URL.
 - O token do PWA ficará somente em `sessionStorage` durante a sessão da aba, com fallback exclusivo para memória quando o armazenamento de sessão estiver indisponível; `localStorage`, IndexedDB e Cache Storage não serão usados.
 - O documento do PWA usará política de referência `no-referrer`, e links com token inválido limparão o valor anterior da mesma sessão.
-- O PWA operará em modo `api` com a base pública `https://n8n.autamacao.shop/api`; essa URL é configuração pública e não contém segredo.
+- O PWA operará exclusivamente via API com a base pública `https://n8n.autamacao.shop/api`; essa URL é configuração pública e não contém segredo.
+- `contas_mensais_prod` preservará os dados reais e `contas_mensais_dev` será uma cópia controlada para desenvolvimento e testes. A seleção da aba ocorrerá na origem configurada nos workflows n8n; o frontend não terá dados embutidos.
 - As requisições do PWA usarão `cache: no-store`, `credentials: omit`, `redirect: error` e `referrerPolicy: no-referrer`.
 - Campos textuais retornados pela API serão escapados antes da inserção no HTML para impedir injeção de conteúdo capaz de acessar o token da sessão.
 - Nenhum segredo interno do n8n, Google Sheets ou Evolution API ficará exposto no frontend.
@@ -32,6 +33,7 @@ Este documento registra decisões definitivas. Pontos ainda não resolvidos fica
 - As rotas nativas `/webhook/api/*` serão tratadas como implementação interna; o PWA usará somente os caminhos públicos `/api/*` após a configuração do proxy.
 - O proxy será uma configuração dinâmica do Traefik em `/etc/easypanel/traefik/config/financas-mpd-api.yaml`, sem quinto webhook e sem alteração dos quatro workflows.
 - Somente os quatro paths contratuais serão reescritos de `/api/...` para `/webhook/api/...`; outros paths não usarão o proxy FINANCAS-MPD.
+- Na release de produção com edição pelo card, `POST /api/accounts/update-pattern` ainda não está exposto pelo proxy e retorna `404`; até a inclusão do quinto path no Traefik, o PWA chama a rota nativa publicada `POST /webhook/api/accounts/update-pattern`.
 - O preflight será respondido diretamente pelo middleware nativo de CORS do Traefik. Nesta versão ele retorna `200` sem body, resposta 2xx válida, em vez de `204`.
 - `FINANCAS_ALLOWED_ORIGIN` terá como único valor `https://financas-mpd.vercel.app`; origens diferentes não receberão autorização CORS válida.
 
@@ -64,17 +66,18 @@ Este documento registra decisões definitivas. Pontos ainda não resolvidos fica
 - Os mocks serão substituídos pelo Google Sheets um endpoint por vez, com teste e evidência antes do endpoint seguinte.
 - O workflow de liquidação executará diariamente às `00:05` em `America/Sao_Paulo` e marcará como pagas as contas de débito automático cujo vencimento original já passou.
 - A liquidação automática preenche `status = paga`, usa o mesmo timestamp em `pago_em` e `atualizado_em`, limpa `adiada_para` e é idempotente.
-- O workflow de geração executará diariamente às `06:00` em `America/Sao_Paulo` e garantirá a janela inclusiva entre hoje e `D+30`, sem remover histórico.
-- Antes de qualquer escrita, a geração validará todas as cotações mensais necessárias à janela; qualquer ausência, duplicidade ou valor inválido abortará integralmente a execução.
-- Na configuração atual, a cotação de setembro de 2026 deve ser cadastrada até `2026-08-02`.
-- O workflow de lembretes executará diariamente às `08:00` em `America/Sao_Paulo`.
-- Contas manuais recebem lembretes em `D-5`, `D-2`, `D-1`, `D0` e `D+1`; débitos automáticos recebem somente `D-2`, `D-1` e `D0`.
-- As etapas de lembrete são sempre calculadas pelo `vencimento` original, inclusive quando a conta está adiada.
+- A geração da competência seguinte acontecerá dentro do workflow diário de lembretes das `08:00`, em `America/Sao_Paulo`, antes da montagem do WhatsApp.
+- A geração só criará contas quando a data local for exatamente dois dias antes do último dia do mês.
+- Antes de qualquer escrita, a geração validará a cotação mensal da competência seguinte; ausência, duplicidade ou valor inválido impedirá a criação de novas contas, mas não bloqueará lembretes já existentes.
+- A cotação da competência seguinte deve estar cadastrada antes do ciclo diário das `08:00` que ocorrer dois dias antes do último dia do mês corrente.
+- O WhatsApp diário inclui todas as contas em `status = pendente` ou `adiada` existentes na aba configurada.
+- A etapa `D-*` não filtra elegibilidade de envio; ela é calculada apenas para auditoria em `notificacoes`.
+- As etapas de auditoria são calculadas pela data efetiva da conta: `adiada_para` quando a conta está adiada e esse campo está preenchido; caso contrário, `vencimento`.
 - Vencimentos configurados para dias inexistentes no mês-alvo serão ajustados ao último dia válido.
 - O identificador das ocorrências geradas será determinístico no formato `conta_YYYY_MM_<despesa_id>`.
 - Cada tentativa consolidada gerará uma linha em `notificacoes` por conta e etapa, mesmo que várias contas sejam enviadas na mesma mensagem.
-- `notificacao_id` usará o formato `notif_<execution_id>_<sequencia>_<conta_id>_<etapa>`, normalizado para caracteres seguros, garantindo unicidade entre tentativas sem substituir a chave de deduplicação funcional.
-- Somente `status_envio = enviada` bloqueará nova tentativa para a mesma combinação `conta_id + etapa + canal`; registros `erro`, outra etapa ou outro canal não bloquearão reenvio.
+- `notificacao_id` usará o formato `notif_<execution_id>_<sequencia>_<conta_id>_<etapa>`, normalizado para caracteres seguros, garantindo unicidade entre tentativas.
+- `notificacoes` é auditoria de envio; nenhum histórico bloqueia novo envio diário de conta ainda `pendente` ou `adiada`.
 - As abas temporárias `Cópia de contas_mensais` e `notificacoes_teste` foram removidas após a simulação, e o workflow `FINANCAS-MPD - SIM - Lembretes WhatsApp` foi arquivado.
 
 ## Interface
@@ -86,10 +89,10 @@ Este documento registra decisões definitivas. Pontos ainda não resolvidos fica
 ## Baseline visual aprovado
 
 - O cabeçalho exibirá apenas “Finanças MPD”.
-- O resumo superior exibirá somente Vencidas, Vencem hoje e Próximas.
+- O resumo superior exibirá somente Não Pagas, Hoje e A Pagar.
 - As contas serão apresentadas em cards compactos e mobile-first.
 - Categoria e tipo de pagamento ficarão na linha abaixo do título.
-- Checkbox, Adiar e Ignorar ficarão no canto superior direito; Adiar e Ignorar usarão ícones locais do Font Awesome.
+- Checkbox e ações ficarão no canto superior direito; a edição usará ícone de três pontos local do Font Awesome.
 - O estado temporal será comunicado pelo agrupamento da seção, sem badge interno de status.
 - Textos auxiliares repetitivos não serão exibidos nos cards.
 - ARS será o valor principal e BRL será apresentado menor como valor secundário.

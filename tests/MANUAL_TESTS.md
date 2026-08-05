@@ -18,7 +18,7 @@ Incluído:
 - identificação de contas manuais e em débito automático;
 - seleção, pagamento, adiamento e ignorar via endpoint controlado;
 - reflexo dos status na interface e em `contas_mensais`;
-- registros e deduplicação de notificações;
+- registros de auditoria de notificações;
 - cotação mensal e geração idempotente de ocorrências;
 - uso no iPhone já previsto na Fase 5.
 
@@ -40,6 +40,8 @@ As abas de despesas e configurações são pré-condições já validadas. No mo
 - Abas e cabeçalhos iguais aos definidos em [DATA_MODEL.md](../docs/DATA_MODEL.md).
 - Despesas e configurações previamente conferidas.
 - Baseline de `contas_mensais`, `notificacoes` e `cotacoes_mensais` relido no início da rodada.
+- Para testes locais, usar `contas_mensais_dev`, previamente copiada de `contas_mensais_prod`; a aba produtiva deve permanecer preservada.
+- Para validação de produção, usar `contas_mensais_prod` e registrar o baseline antes de qualquer ação mutável.
 - Workflow diário das 08:00 já concluído ou sua possível concorrência registrada.
 - Para testes mutáveis, conta reservada e snapshot prévio de `status`, `pago_em`, `adiada_para`, `ignorada_em` e `atualizado_em`.
 - Plano de restauração disponível antes de confirmar qualquer pagamento, adiamento ou ignorar.
@@ -56,9 +58,9 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 ## 4. Validações na tela
 
 - Cabeçalho somente com “Finanças MPD”.
-- Resumo com Vencidas, Vencem hoje e Próximas.
+- Resumo com Não Pagas, Hoje e A Pagar.
 - Quantidade do resumo igual à quantidade de cards em cada grupo.
-- Filtros locais Todas, Vencidas, Hoje e Próximas abaixo do resumo.
+- Filtros locais Todas, Não Pagas, Hoje e A Pagar abaixo do resumo.
 - Cards com nome, categoria, tipo, data, ARS e BRL.
 - ARS como valor principal e BRL como secundário.
 - `Manual` e `Débito aut.` coerentes com a configuração.
@@ -90,12 +92,12 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 
 - `notificacao_id` único.
 - `conta_id` existente em `contas_mensais`.
-- Etapa em `D-5`, `D-2`, `D-1`, `D0` ou `D+1`.
+- Etapa no formato `D0`, `D-<n>` ou `D+<n>`, calculada pela data efetiva.
 - Timestamp ISO com offset.
 - Canal `whatsapp`.
 - Status `enviada` ou `erro`.
-- Uma linha por conta e etapa incluídas na tentativa consolidada.
-- Somente um sucesso anterior bloqueia a mesma chave `conta_id + etapa + canal`.
+- Uma linha por conta incluída na tentativa consolidada.
+- Sucesso anterior não bloqueia novo envio diário enquanto a conta continuar pendente ou adiada.
 - Registro `erro`, etapa diferente ou canal diferente não bloqueia nova tentativa.
 - Nenhuma gravação de notificação altera o estado financeiro da conta.
 
@@ -126,7 +128,7 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - **Status inicial:** `Pendente`
 - **Pré-condição:** data local da rodada registrada.
 - **Ação manual:** calcular a data efetiva de cada conta e comparar com as três seções.
-- **Resultado esperado na interface:** datas anteriores em Vencidas, a data atual em Vencem hoje e futuras em Próximas; contadores coerentes.
+- **Resultado esperado na interface:** datas anteriores em Não Pagas, a data atual em Hoje e futuras em A Pagar; contadores coerentes.
 - **Resultado esperado na base:** nenhuma escrita; `adiada_para` prevalece sobre `vencimento` nas contas adiadas.
 - **Critério de aprovação:** soma dos grupos igual ao total e todas as contas classificadas corretamente.
 
@@ -166,20 +168,20 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - **Resultado esperado na base:** `status = paga`, `pago_em` e `atualizado_em` preenchidos; demais campos preservados.
 - **Critério de aprovação:** somente a conta selecionada muda e a persistência é confirmada.
 
-### TM-07 — Adiamento
+### TM-07 — Editar padrão da conta
 
 - **Status inicial:** `Pendente`
-- **Pré-condição:** conta pendente reservada, sem conflito com lembrete do dia, e snapshot realizado.
-- **Ação manual:** pressionar Adiar e recarregar.
-- **Resultado esperado na interface:** feedback, data igual a `vencimento original - 2 dias` quando futura; fallback de sete dias após a data do teste para contas vencidas ou que vencem em até dois dias; card no grupo correspondente.
-- **Resultado esperado na base:** `status = adiada`, `adiada_para` e `atualizado_em` preenchidos; vencimento original preservado.
-- **Critério de aprovação:** data, agrupamento e colunas alteradas correspondem ao contrato.
+- **Pré-condição:** conta pendente reservada e snapshot de `contas_mensais` e `despesas_config`.
+- **Ação manual:** abrir o botão de três pontos, alterar nome, vencimento e valor, salvar e recarregar.
+- **Resultado esperado na interface:** modal compacto com apenas três campos; feedback de sucesso; card atualizado após salvar e após recarga.
+- **Resultado esperado na base:** em `contas_mensais`, `vencimento`, `valor_original`, `valor_convertido` e `atualizado_em` atualizados; em `despesas_config`, `nome`, `valor_estimado` e `dia_vencimento` atualizados.
+- **Critério de aprovação:** campos fora do contrato de edição permanecem preservados e futuras gerações usam o novo padrão.
 
 ### TM-07A — Filtros locais da lista
 
 - **Status inicial:** `Pendente`
 - **Pré-condição:** listagem carregada com ao menos uma conta em qualquer grupo.
-- **Ação manual:** alternar entre Todas, Vencidas, Hoje e Próximas.
+- **Ação manual:** alternar entre Todas, Não Pagas, Hoje e A Pagar.
 - **Resultado esperado na interface:** cada filtro mostra somente os cards do grupo escolhido; Todas mostra todos os grupos; filtro vazio mostra mensagem de ausência; o resumo superior não muda.
 - **Resultado esperado na base:** nenhuma alteração.
 - **Critério de aprovação:** filtros não chamam API, limpam seleção ativa e não modificam contadores globais.
@@ -211,23 +213,23 @@ Referência conhecida em 22/07/2026, que deve ser confirmada novamente no iníci
 - **Resultado esperado na base:** IDs únicos, referências válidas, etapas/canal/status válidos e contas financeiras inalteradas.
 - **Critério de aprovação:** nenhuma referência órfã ou linha inválida.
 
-### TM-11 — Deduplicação de notificações
+### TM-11 — Auditoria de notificações
 
 - **Status inicial:** `Pendente`
-- **Pré-condição:** candidatos do dia calculados, grupo e instância confirmados e autorização explícita para envio real.
+- **Pré-condição:** contas `pendente` ou `adiada` calculadas, grupo e instância confirmados e autorização explícita para envio real.
 - **Ação manual:** executar o workflow uma vez, conferir o resultado e repetir a execução.
-- **Resultado esperado na interface:** nenhuma mudança financeira; uma única mensagem consolidada na primeira tentativa elegível e nenhuma repetição do mesmo sucesso.
-- **Resultado esperado na base:** primeira execução registra uma linha por conta/etapa; segunda não duplica chaves já `enviada`; `contas_mensais` fica intacta.
-- **Critério de aprovação:** quantidade de registros igual aos candidatos e repetição sem novo envio.
+- **Resultado esperado na interface:** nenhuma mudança financeira; cada execução autorizada envia novamente as contas que continuam pendentes ou adiadas.
+- **Resultado esperado na base:** cada execução registra uma linha de auditoria por conta enviada; `contas_mensais` fica intacta.
+- **Critério de aprovação:** quantidade de registros igual às contas pendentes ou adiadas incluídas na mensagem; histórico anterior não bloqueia reenvio.
 
-### TM-12 — Geração contínua D+30
+### TM-12 — Geração antecipada da competência seguinte no ciclo das 08:00
 
 - **Status inicial:** `Pendente`
-- **Pré-condição:** todas as competências necessárias na janela inclusiva hoje–D+30 possuem uma única cotação válida.
-- **Ação manual:** executar manualmente o gerador duas vezes.
-- **Resultado esperado na interface:** quantidade e cards não mudam.
-- **Resultado esperado na base:** somente ocorrências ausentes dentro da janela são criadas; histórico é preservado e os pares `despesa_id + competencia` continuam únicos.
-- **Critério de aprovação:** repetição registra zero inclusões, mês curto é ajustado e cotação ausente aborta sem escrita parcial.
+- **Pré-condição:** a cotação da competência seguinte possui uma única linha válida em `cotacoes_mensais`.
+- **Ação manual:** validar o workflow diário de lembretes em execução controlada no dia correto, dois dias antes do último dia do mês, e repetir a execução sem envio real.
+- **Resultado esperado na interface:** após geração, as contas da competência seguinte ficam disponíveis na listagem conforme seus vencimentos.
+- **Resultado esperado na base:** todas as despesas ativas ausentes são criadas em `contas_mensais` para a competência seguinte antes da seleção dos lembretes; histórico é preservado e os pares `despesa_id + competencia` continuam únicos.
+- **Critério de aprovação:** repetição registra zero inclusões, mês curto é ajustado e cotação ausente impede somente a geração, mantendo a montagem dos lembretes já existentes.
 
 ### TM-13 — Idempotência das ações
 

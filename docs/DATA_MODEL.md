@@ -35,7 +35,9 @@ despesa_id,nome,categoria,tipo_pagamento,moeda_original,valor_estimado,dia_venci
 
 Os registros operacionais não são reproduzidos neste documento porque mudam durante a validação. A massa controlada cadastrada e as alterações posteriores são preservadas em [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md) e nos logs de testes manuais.
 
-## Aba `contas_mensais`
+## Abas `contas_mensais_prod` e `contas_mensais_dev`
+
+As duas abas usam exatamente o mesmo cabeçalho e modelo abaixo. `contas_mensais_prod` preserva os dados reais. `contas_mensais_dev` é uma cópia controlada da aba produtiva e recebe as alterações dos testes locais. A escolha da aba é feita na configuração da origem dos workflows n8n; o PWA não acessa planilhas diretamente.
 
 Ocorrências mensais. `conta_id` é a chave primária lógica e `despesa_id` referencia `despesas_config`. A combinação `despesa_id + competencia` deve ser única.
 
@@ -68,17 +70,17 @@ Cabeçalho exato:
 conta_id,despesa_id,competencia,vencimento,valor_original,moeda_original,valor_convertido,moeda_convertida,cotacao_usada,status,pago_em,adiada_para,ignorada_em,atualizado_em
 ```
 
-Os exemplos fictícios usados durante a construção inicial não representam mais o estado vigente. Seus resultados permanecem no histórico de [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md). Quantidades, status e timestamps atuais devem ser capturados no início de cada execução manual.
+Os exemplos de teste usados durante a construção inicial não representam mais o estado vigente. Seus resultados permanecem no histórico de [N8N_EXECUTION_LOG.md](N8N_EXECUTION_LOG.md). Quantidades, status e timestamps atuais devem ser capturados no início de cada execução manual.
 
 ## Aba `notificacoes`
 
-Registro dos envios da Fase 4. `notificacao_id` é a chave primária lógica. Para impedir reenvios, a combinação `conta_id + etapa + canal` deve ser única para um envio bem-sucedido.
+Registro dos envios da Fase 4. `notificacao_id` é a chave primária lógica. A aba é auditoria de tentativas do WhatsApp; ela não bloqueia o envio diário de contas que continuam `pendente` ou `adiada`.
 
 | Coluna | Tipo/formato | Obrigatória | Regra |
 |---|---|---:|---|
 | `notificacao_id` | texto | sim | Único e não vazio |
 | `conta_id` | texto | sim | Deve existir em `contas_mensais` |
-| `etapa` | enum | sim | `D-5`, `D-2`, `D-1`, `D0` ou `D+1` |
+| `etapa` | texto | sim | Deslocamento da data efetiva no formato `D0`, `D-<n>` ou `D+<n>` |
 | `enviada_em` | timestamp | sim | Horário da tentativa |
 | `canal` | enum | sim | `whatsapp` |
 | `status_envio` | enum | sim | `enviada` ou `erro` |
@@ -89,7 +91,7 @@ Cabeçalho exato:
 notificacao_id,conta_id,etapa,enviada_em,canal,status_envio
 ```
 
-O conteúdo desta aba é histórico operacional e pode crescer com o workflow diário. A quantidade atual nunca deve ser inferida deste documento: deve ser relida e registrada no baseline de cada teste.
+O conteúdo desta aba é histórico operacional e pode crescer com o workflow diário. A mesma conta pode ter várias linhas em dias diferentes enquanto continuar pendente. A quantidade atual nunca deve ser inferida deste documento: deve ser relida e registrada no baseline de cada teste.
 
 ## Aba `cotacoes_mensais`
 
@@ -108,7 +110,7 @@ Cabeçalho exato:
 competencia,cotacao_ars_por_brl,atualizado_em,atualizado_por
 ```
 
-O dado fictício inicial de `250 ARS/BRL` pertence somente ao histórico de implementação. A massa controlada de julho e agosto de 2026 foi corrigida para `290 ARS/BRL`; o valor vigente de cada competência deve sempre ser confirmado diretamente na aba antes de testar ou gerar ocorrências.
+O dado inicial de teste de `250 ARS/BRL` pertence somente ao histórico de implementação. A massa controlada de julho e agosto de 2026 foi corrigida para `290 ARS/BRL`; o valor vigente de cada competência deve sempre ser confirmado diretamente na aba antes de testar ou gerar ocorrências.
 
 Regra operacional:
 
@@ -119,18 +121,19 @@ Regra operacional:
 
 Regra operacional da geração mensal:
 
-- o workflow executa diariamente às `06:00` em `America/Sao_Paulo`;
-- cada execução calcula a janela inclusiva entre a data local e `D+30`;
-- somente ocorrências cujo vencimento ajustado esteja dentro dessa janela são consideradas;
+- a geração mensal roda dentro do workflow diário de WhatsApp das `08:00`, em `America/Sao_Paulo`;
+- antes de montar o lembrete consolidado, o fluxo prossegue com a geração somente quando a data local for exatamente dois dias antes do último dia do mês;
+- quando a guarda é atendida, a competência alvo é exclusivamente o mês seguinte;
+- todas as despesas ativas geram uma ocorrência para a competência alvo, independentemente do dia de vencimento dentro do mês;
 - contas antigas não são removidas quando saem da janela e permanecem como histórico;
 - somente linhas com `ativa = sim` são elegíveis;
 - a combinação `despesa_id + competencia` é consultada antes da escrita e não pode ser duplicada;
 - `conta_id` é determinístico no formato `conta_YYYY_MM_<despesa_id>`;
 - quando `dia_vencimento` não existe no mês-alvo, usa-se o último dia válido do mês;
-- todas as competências necessárias à janela são validadas antes da escrita;
-- cotação ausente, duplicada ou não positiva encerra integralmente a execução antes da escrita.
+- a cotação da competência alvo é validada antes da escrita;
+- cotação ausente, duplicada ou não positiva impede somente a criação de novas contas naquele ciclo; os lembretes das contas já existentes continuam sendo montados.
 
-Com a configuração atual, a cotação de setembro de 2026 deve estar cadastrada até `2026-08-02`, quando `2026-09-01` passa a integrar a janela `D+30`.
+A cotação da competência seguinte deve estar cadastrada antes do ciclo diário das `08:00` que ocorrer dois dias antes do último dia do mês corrente.
 
 Regra operacional dos débitos automáticos:
 
@@ -143,8 +146,9 @@ Regra operacional dos débitos automáticos:
 ## Uso por integração
 
 - `GET /api/accounts` lê `contas_mensais` e cruza `despesas_config` por `despesa_id`.
-- Os três endpoints de alteração leem e atualizam somente `contas_mensais`.
-- O workflow de geração mensal lê `cotacoes_mensais` e copia a cotação aplicada para `contas_mensais.cotacao_usada`.
+- Os endpoints de pagamento, adiamento e ignorar leem e atualizam somente `contas_mensais`.
+- O endpoint de atualização de padrão lê `contas_mensais` e `despesas_config`: atualiza a ocorrência mensal atual e persiste `nome`, `valor_estimado` e `dia_vencimento` como novo padrão recorrente.
+- O workflow diário de WhatsApp lê `cotacoes_mensais` na etapa de geração mensal e copia a cotação aplicada para `contas_mensais.cotacao_usada`.
 - O workflow de liquidação atualiza somente os campos operacionais de débitos automáticos vencidos em `contas_mensais`.
-- A Fase 4 lê contas exibíveis e grava os resultados de envio em `notificacoes`.
+- A Fase 4 lê contas `pendente` ou `adiada`, monta o WhatsApp consolidado e grava os resultados de envio em `notificacoes` como auditoria.
 - O PWA nunca acessa esta planilha diretamente.
